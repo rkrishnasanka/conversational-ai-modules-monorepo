@@ -20,10 +20,10 @@ REQUIRES = [
 setup(
     name=NAME,
     version=VERSION,
-    description="KnowledgeBot API",
+    description="CED Clinic Knowledgebot API - OpenAPI 3.1",
     author_email="rkrishnasanka@gmail.com",
     url="",
-    keywords=["Swagger", "KnowledgeBot API"],
+    keywords=["Swagger", "CED Clinic Knowledgebot API - OpenAPI 3.1"],
     install_requires=REQUIRES,
     packages=find_packages(),
     package_data={'': ['swagger/swagger.yaml']},
@@ -31,6 +31,6 @@ setup(
     entry_points={
         'console_scripts': ['swagger_server=swagger_server.__main__:main']},
     long_description="""\
-    This is the API for the Knowledgebot.
+    This is a baseline implementation of the CED clinic Knowledgebot API
     """
 )
