@@ -20,6 +20,7 @@ langchain="*"
 pypdf="*"
 chromadb="*"
 tiktoken="*"
+openai = "^0.27.8"
 
 [tool.poetry.group.dev.dependencies]
 flask_testing="0.8.0"
