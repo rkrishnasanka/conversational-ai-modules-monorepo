@@ -5,6 +5,11 @@ description = ""
 authors = ["Radhakrishna Sanka <rkrishnasanka@gmail.com>"]
 readme = "README.md"
 
+packages = [
+    { include = "swagger_server" },
+    { include = "chatbot" },
+]
+
 [tool.poetry.dependencies]
 python = ">=3.8.1,<4.0"
 connexion = "^2.14.2"
