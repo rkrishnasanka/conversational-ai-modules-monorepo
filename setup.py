@@ -20,10 +20,10 @@ REQUIRES = [
 setup(
     name=NAME,
     version=VERSION,
-    description="CED Clinic Knowledgebot API - OpenAPI 3.1",
+    description="CED Clinic Knowledgebot API - OpenAPI 3.0.0",
     author_email="rkrishnasanka@gmail.com",
     url="",
-    keywords=["Swagger", "CED Clinic Knowledgebot API - OpenAPI 3.1"],
+    keywords=["Swagger", "CED Clinic Knowledgebot API - OpenAPI 3.0.0"],
     install_requires=REQUIRES,
     packages=find_packages(),
     package_data={'': ['swagger/swagger.yaml']},
