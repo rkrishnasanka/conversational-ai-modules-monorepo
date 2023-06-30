@@ -25,6 +25,7 @@ pymongo = "^4.3.3"
 flask-cors = "^3.0.10"
 bcrypt = "^4.0.1"
 python-jose = "^3.3.0"
+flask-jwt-extended = "^4.5.2"
 
 [tool.poetry.group.dev.dependencies]
 flask_testing="0.8.0"
