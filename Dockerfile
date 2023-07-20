@@ -1,31 +1,29 @@
-FROM python:3.11-alpine
-RUN apk update
-RUN apk add \
-    build-base \
-    freetds-dev \
-    g++ \
-    gcc \
-    tar \
-    gfortran \
-    gnupg \
-    libffi-dev \
-    libpng-dev \
-    libsasl \
-    openblas-dev \
-    openssl-dev
-RUN mkdir -p /usr/src/app
-WORKDIR /usr/src/app
-COPY . /usr/src/app
-# COPY pyproject.toml poetry.lock /usr/src/app/
+FROM python:3.11-bookworm
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+ENV PIP_DEFAULT_TIMEOUT=100 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_VERSION=1.4.1
+
+
+RUN pip install "poetry==$POETRY_VERSION"
+
+RUN mkdir -p /usr/src/backend
+WORKDIR /usr/src/backend
+COPY . /usr/src/backend
+# COPY pyproject.toml poetry.lock /usr/src/backend/
+
+# RUN pip3 install --no-cache-dir -r requirements.txt
 # RUN ls
-# RUN pip3 install --no-cache-dir .
+RUN poetry config virtualenvs.create false
 
-COPY . /usr/src/app
+RUN poetry install
+
+ENV PYTHONPATH "${PYTHONPATH}:/usr/src/"
 
 EXPOSE 5000
 
 ENTRYPOINT ["python3"]
 
+# CMD ["__main__.py"]
 CMD ["-m", "backend"]
