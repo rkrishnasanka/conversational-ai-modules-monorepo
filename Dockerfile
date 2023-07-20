@@ -1,16 +1,29 @@
-FROM python:3.6-alpine
+FROM python:3.11-bookworm
 
-RUN mkdir -p /usr/src/app
-WORKDIR /usr/src/app
+ENV PIP_DEFAULT_TIMEOUT=100 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_VERSION=1.4.1
 
-COPY requirements.txt /usr/src/app/
 
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install "poetry==$POETRY_VERSION"
 
-COPY . /usr/src/app
+RUN mkdir -p /usr/src/backend
+WORKDIR /usr/src/backend
+COPY . /usr/src/backend
+# COPY pyproject.toml poetry.lock /usr/src/backend/
+
+# RUN pip3 install --no-cache-dir -r requirements.txt
+# RUN ls
+RUN poetry config virtualenvs.create false
+
+RUN poetry install
+
+ENV PYTHONPATH "${PYTHONPATH}:/usr/src/"
 
 EXPOSE 8080
 
 ENTRYPOINT ["python3"]
 
-CMD ["-m", "swagger_server"]
+# CMD ["__main__.py"]
+CMD ["-m", "backend"]
