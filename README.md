@@ -48,5 +48,5 @@ poetry export --without-hashes --format=requirements.txt > requirements.txt
 docker build -t swagger_server .
 
 # starting up a container
-docker run -p 5000:5000 --env-file ../.env  swagger_server
+docker run -p 8080:8080 --env-file ../.env  swagger_server
 ```
