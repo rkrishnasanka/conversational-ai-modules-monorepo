@@ -49,8 +49,4 @@ docker build -t swagger_server .
 
 # starting up a container
 docker run -p 5000:5000 --env-file ../.env  swagger_server
-
-
-# docker run -p 5000:5000 --entrypoint  swagger_server
-
 ```
