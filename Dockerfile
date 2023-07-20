@@ -21,7 +21,7 @@ RUN poetry install
 
 ENV PYTHONPATH "${PYTHONPATH}:/usr/src/"
 
-EXPOSE 5000
+EXPOSE 8080
 
 ENTRYPOINT ["python3"]
 
