@@ -50,3 +50,11 @@ docker build -t swagger_server .
 # starting up a container
 docker run -p 8080:8080 --env-file ../.env  swagger_server
 ```
+
+## Stripe Webhook Notes
+Events of interest
+- `invoice.paid`
+- `invoice.payment_succeeded`
+- `checkout.session.completed` (has email)
+- `customer.subscription.created`
+
