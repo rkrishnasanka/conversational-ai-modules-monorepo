@@ -1,5 +1,0 @@
-{
-  "dependencies": {
-    "mongo-migrate": "^2.0.2"
-  }
-}

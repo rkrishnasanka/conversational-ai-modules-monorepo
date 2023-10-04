@@ -28,6 +28,7 @@ flask-jwt-extended = "^4.5.2"
 gunicorn = "^21.2.0"
 squareup = "^29.0.0.20230720"
 chromadb = "^0.4.8"
+sendgrid = "^6.10.0"
 stripe = "^6.4.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -38,7 +39,16 @@ py="^1.4.31"
 randomize="^0.13"
 tox="3.20.1"
 pluggy = "^1.2.0"
+black = "^23.9.1"
+mypy = "^1.5.1"
+isort = "^5.12.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
