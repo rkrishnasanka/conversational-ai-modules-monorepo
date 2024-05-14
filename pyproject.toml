@@ -8,6 +8,7 @@ readme = "README.md"
 packages = [
     { include = "swagger_server" },
     { include = "chatbot" },
+    { include = "discord_bot" }
 ]
 
 [tool.poetry.dependencies]
@@ -30,6 +31,7 @@ squareup = "^29.0.0.20230720"
 chromadb = "^0.4.8"
 sendgrid = "^6.10.0"
 stripe = "^6.4.0"
+discord-py = "^2.3.2"
 
 [tool.poetry.group.dev.dependencies]
 flask_testing="0.8.0"
@@ -52,3 +54,6 @@ line-length = 120
 
 [tool.isort]
 profile = "black"
+
+[tool.poetry.scripts]
+start-bot = "discord_bot.server:run_server"
