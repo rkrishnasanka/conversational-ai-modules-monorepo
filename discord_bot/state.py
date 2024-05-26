@@ -19,12 +19,3 @@ def new_user() -> BotState:
 # Sets state to Engaged when conversation with user already exists
 def user_exists() -> BotState:
     return BotState.ENGAGED
-
-def transition_5(state_variable: BotState) -> BotState:
-    # Check if in the right state
-    if state_variable == BotState.IDLE:
-        return # implement logic
-    
-    # If nothing happens, return the state variable
-    return state_variable
-

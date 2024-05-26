@@ -1,9 +1,11 @@
 import discord
 import random
 from discord.ext import commands
+import re
 from chatbot import Chatbot
-from discord_bot.state import BotState, empty_active_users, user_exists, new_user
-from discord_bot.memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
+from state import BotState, empty_active_users, user_exists, new_user
+from memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
+from testbot import Summarize
 
 
 global_state = BotState.IDLE
@@ -45,28 +47,30 @@ def create_bot():
         
         # When the bot is mentioned in the message
         if bot.user.mentioned_in(message):
+            user_input = remove_user_id(user_input)
+            print(f"User Input: {user_input}")
             if user_id in active_users:
                 if "!exit" in user_input: # To remove conversation
                     await message.channel.send(f"Conversation with the user <@{user_id}> Ended.")
                     set_user_inactive(user_id) # Removes the user from active_users
                     global_state = empty_active_users(global_state) # Sets the bot state to Idle if active_users are empty
                 else: #Any other prompt
-                    await message.channel.send(f"Conversation with the user <@{user_id}> already going on!")
                     global_state = user_exists() # Sets the bot state to Engaged
             else:
                 set_user_active(user_id) # Adding the user to the current going-on conversations
                 global_state = new_user() # Sets the bot state to Engaged
-                await message.channel.send(f"New Convo started with the user <@{user_id}>")
 
-            # To Check the state of the bot
-            if global_state == BotState.ENGAGED: # If the bot is in Engaged state (user_conversations exist)
+        # To Check the state of the bot
+        if global_state == BotState.ENGAGED: # If the bot is in Engaged state (user_conversations exist)
+            if user_id in active_users:
                 # Assume interaction with the user ......
                 # TODO: pass the data to the conversational chatbot
-                reply = chatbot_instance.converse(user_input, {})
-                # reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
+                #reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
+                reply1 = chatbot_instance.converse(user_input, {})
+                reply= Summarize(user_input, chat_history)
+                print(reply[0])
+                reply = f"<@{user_id}> " + reply[0]
                 await message.channel.send(reply)
-            else: # Bot is in Idle state
-                await message.channel.send("All conversations with the user Ended. Bot is in Idle State")
         # To process the commands
         await bot.process_commands(message)
 
@@ -81,8 +85,7 @@ def create_bot():
         replies = [f"Goodbye <@{user_id}>! Have a great day!", f"Bye <@{user_id}>! Hope to see you soon!", f"See you later <@{user_id}>!"]
         reply = random.choice(replies)
         await ctx.send(reply)
-        if not active_users:
-            global_state = BotState.IDLE
+        empty_active_users(global_state)
 
     #STATE
     @bot.command(name="state", help="-Prompts the current state of bot")
@@ -94,3 +97,13 @@ def create_bot():
             await ctx.send("Engaged")
 
     return bot
+
+def remove_user_id(input_string):
+    # Regular expression pattern to match user IDs in the format <@user_id>
+    pattern = r"<@\d+>"
+    
+    # Replace all occurrences of the pattern with an empty string
+    result = re.sub(pattern, "", input_string)
+    
+    # Strip any leading or trailing whitespace
+    return result.strip()
