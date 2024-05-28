@@ -1,5 +1,5 @@
 from enum import Enum
-from memory import active_users
+from discord_bot.memory import active_users
 
 
 class BotState(Enum):
@@ -11,6 +11,8 @@ def empty_active_users(state_variable: BotState) -> BotState:
     if state_variable == BotState.ENGAGED:
         if not active_users: # If active_users is empty
             return BotState.IDLE
+    
+    return state_variable
 
 # Sets state to Engaged when a new Conversation with a user starts
 def new_user() -> BotState:

@@ -1,5 +1,5 @@
+from discord_bot.parameters import OPENAI_API_KEY
 import pandas as pd
-import gradio as gr
 import sqlite3
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
@@ -8,14 +8,13 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders.csv_loader import CSVLoader
+from pydantic.v1 import SecretStr
 
-# API key for OpenAI
-api_key = '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'
 
 # Load data from CSV and initialize FAISS vector store
 loader = CSVLoader(file_path='product_descriptions.csv', encoding='ISO-8859-1')
 data = loader.load()
-db_csv = Chroma.from_documents(data, OpenAIEmbeddings(api_key=api_key))
+db_csv = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
 
 # SQLite database file
 DB_FILE = "aegion.db"
@@ -36,7 +35,7 @@ def fetch_data_from_sqlite():
 df = fetch_data_from_sqlite()
 
 # Initialize LLM
-llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=api_key)
+llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY)
 
 # Default system prompt
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
@@ -47,7 +46,7 @@ def get_prompt(instruction, system_prompt=DEFAULT_SYSTEM_PROMPT):
     return f"[INST]{SYSTEM_PROMPT}{instruction}[/INST]"
 
 # Function to identify qualitative and quantitative data and user intent
-def Summarize(user_input, chat_history):
+def summarize(user_input, chat_history):
     # Check for empty or whitespace-only input
     if not user_input.strip():
         response = "Please provide a valid input."

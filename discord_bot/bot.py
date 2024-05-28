@@ -3,9 +3,9 @@ import random
 from discord.ext import commands
 import re
 from chatbot import Chatbot
-from state import BotState, empty_active_users, user_exists, new_user
-from memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
-from testbot import Summarize
+from discord_bot.state import BotState, empty_active_users, user_exists, new_user
+from discord_bot.memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
+from discord_bot.inventoryquery import summarize
 
 
 global_state = BotState.IDLE
@@ -66,8 +66,11 @@ def create_bot():
                 # Assume interaction with the user ......
                 # TODO: pass the data to the conversational chatbot
                 #reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
-                reply1 = chatbot_instance.converse(user_input, {})
-                reply= Summarize(user_input, chat_history)
+                reply1 = chatbot_instance.converse(user_input, [])
+                reply= summarize(user_input, chat_history)
+                if reply is None:
+                    print("ERROR - Summarization failed")
+                    reply = ""
                 print(reply[0])
                 reply = f"<@{user_id}> " + reply[0]
                 await message.channel.send(reply)
