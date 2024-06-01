@@ -1,4 +1,7 @@
-from discord_bot.parameters import OPENAI_API_KEY
+from typing import List
+from xml.dom.minidom import Document
+from discord_bot.parameters import OPENAI_API_KEY, PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE
+from langchain import FAISS
 import pandas as pd
 import sqlite3
 from langchain.memory import ConversationBufferMemory
@@ -9,20 +12,38 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from pydantic.v1 import SecretStr
+from langchain.schema import Document
+from discord_bot.parameters import OPENAI_API_KEY
 
 
 # Load data from CSV and initialize FAISS vector store
-loader = CSVLoader(file_path='product_descriptions.csv', encoding='ISO-8859-1')
+loader = CSVLoader(file_path=PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
 data = loader.load()
+# db_csv = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
+
+# Extract the dataframe from the documents
+df = pd.DataFrame([doc.metadata for doc in data])
+
+# Print column names to verify them
+print("Column names in the DataFrame:", df.columns.tolist())
+
+# Create new documents with the description as the page content and other columns as metadata
+data: List[Document] = [Document(page_content=row['description'], metadata={
+    'Product': row['Product'],
+    'Category': row['Category'],
+    'MedicalBenefits': row['MedicalBenefits'],
+    'CustomerRating': row['CustomerRating'],
+    'PurchaseFrequency': row['PurchaseFrequency']
+}) for _, row in df.iterrows()]
+
 db_csv = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
 
-# SQLite database file
-DB_FILE = "aegion.db"
+
 
 # Fetch data from SQLite
-def fetch_data_from_sqlite():
+def fetch_data_from_sqlite() -> pd.DataFrame:
     try:
-        conn = sqlite3.connect(DB_FILE)
+        conn = sqlite3.connect(SQLITE_DB_FILE)
         query = "SELECT * FROM new_dataset"
         df = pd.read_sql_query(query, conn)
     except sqlite3.Error as e:
@@ -41,7 +62,7 @@ llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY)
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 
 # Function to get the prompt
-def get_prompt(instruction, system_prompt=DEFAULT_SYSTEM_PROMPT):
+def get_prompt(instruction, system_prompt=DEFAULT_SYSTEM_PROMPT) -> str:
     SYSTEM_PROMPT = f"<<SYS>>\n{system_prompt}\n<</SYS>>\n\n"
     return f"[INST]{SYSTEM_PROMPT}{instruction}[/INST]"
 
@@ -186,7 +207,7 @@ def generate_query(user_input, summarized_input, chat_history):
 # Function to execute the SQL query
 def execute_query(user_input, summarized_input, query, chat_history):
     try:
-        conn = sqlite3.connect(DB_FILE)
+        conn = sqlite3.connect(SQLITE_DB_FILE)
         cursor = conn.cursor()
         cursor.execute(query)
         result = cursor.fetchall()

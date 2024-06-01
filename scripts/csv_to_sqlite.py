@@ -1,3 +1,8 @@
+"""
+Used to convert the CSV file to a SQLite database table. This script is used in preparation for 
+the API to query the SQLite database.
+"""
+
 import sqlite3
 import pandas as pd
 

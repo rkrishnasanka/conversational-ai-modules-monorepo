@@ -1,3 +1,7 @@
+"""
+This script loads a PDF document, splits it into chunks, embeds the chunks, and stores the embeddings in a VectorDBQA.
+"""
+
 from langchain.chains import VectorDBQA
 from langchain.document_loaders import PyPDFLoader, TextLoader
 from langchain.embeddings import OpenAIEmbeddings

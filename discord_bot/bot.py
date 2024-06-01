@@ -8,10 +8,16 @@ from discord_bot.memory import chat_history, active_users, get_user_chat_history
 from discord_bot.inventoryquery import summarize
 
 
+# Global variable to store the state of the bot
 global_state = BotState.IDLE
 
 
-def create_bot():
+def create_bot() -> commands.Bot:
+    """Create a Discord Bot
+
+    Returns:
+        commands.Bot: The Discord Bot
+    """    
     global global_state
 
     bot = commands.Bot(command_prefix='!', intents=discord.Intents.all())
@@ -21,15 +27,27 @@ def create_bot():
 
     #Event
     @bot.event
-    async def on_ready():
+    async def on_ready() -> None:
+        """Prints a message when the bot is connected to Discord
+        """        
         global global_state
+
+        if bot.user is None:
+            print("log the relevant error")
+            return
+
         print(f'{bot.user.name} has connected to Discord!') # Prints in the terminal
         global_state = BotState.IDLE # Initial State - Idle
 
 
     #Event
     @bot.event
-    async def on_message(message):# Whenever a msg is sent
+    async def on_message(message) -> None:# Whenever a msg is sent
+        """Handles the message sent by the user
+
+        Args:
+            message (_type_): The message sent by the user
+        """        
         global global_state
 
         user_input = message.content # Message from the user
@@ -45,6 +63,10 @@ def create_bot():
         if (message.author == bot.user):
             return
         
+        if bot.user is None:
+            print("log a relevant error")
+            return
+
         # When the bot is mentioned in the message
         if bot.user.mentioned_in(message):
             user_input = remove_user_id(user_input)
@@ -82,7 +104,12 @@ def create_bot():
 
     #BYE
     @bot.command(name='bye', help="-Will end the conversation")
-    async def bye(ctx):
+    async def bye(ctx) -> None:
+        """Ends the conversation with the user
+
+        Args:
+            ctx (Unknown): The context of the command
+        """        
         global global_state
         user_id = ctx.author.id
         replies = [f"Goodbye <@{user_id}>! Have a great day!", f"Bye <@{user_id}>! Hope to see you soon!", f"See you later <@{user_id}>!"]
@@ -92,8 +119,16 @@ def create_bot():
 
     #STATE
     @bot.command(name="state", help="-Prompts the current state of bot")
-    async def state(ctx):
+    async def state(ctx) -> None:
+        """Prompts the current state of the bot
+
+        Args:
+            ctx (Unknown): The context of the command
+        """        
         global global_state
+
+        # Check the state of the bot is it Idle or Engaged and 
+        # send the message accordingly
         if global_state == BotState.IDLE:
             await ctx.send("Idle")
         else:
@@ -101,7 +136,16 @@ def create_bot():
 
     return bot
 
-def remove_user_id(input_string):
+def remove_user_id(input_string: str) -> str:
+    """Removes user IDs from a string
+
+    Args:
+        input_string (str): The input string
+
+    Returns:
+        str: The string with user IDs removed
+    """
+
     # Regular expression pattern to match user IDs in the format <@user_id>
     pattern = r"<@\d+>"
     
