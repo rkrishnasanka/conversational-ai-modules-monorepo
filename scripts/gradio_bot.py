@@ -5,7 +5,7 @@ And this could be greatful while testing the bot.
 """
 
 import gradio as gr
-from discord_bot.inventoryquery import chat
+from nlqs.query import chat
 
 # Gradio interface
 with gr.Blocks(title="Chatbot using OpenAI") as demo:

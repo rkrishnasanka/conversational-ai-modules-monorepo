@@ -5,24 +5,27 @@
 import csv
 import os
 import re
-from discord_bot.inventoryquery import get_data_vectors, summarize, generate_query, execute_query, similarity_search
+from nlqs.database.sqlite import retrieve_descriptions_and_types_from_db
+from nlqs.query import get_chroma_instance, summarize, generate_query, execute_query, similarity_search
 
 # CSV file paths
 TEST_CASES_FILE = "test_cases.csv"
 BENCHMARK_RESULTS_FILE = "benchmark_results.csv"
 
-data_vectors = get_data_vectors()
+data_vectors = get_chroma_instance()
 
 # Main chat function
 def chat_benchmark(user_input, chat_history):
     if not user_input:
         return chat_history, "", []
     
+    column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()
+
     user_input = re.sub(r"{|}", "", user_input)
-    summarized_input = summarize(user_input, chat_history)
+    summarized_input = summarize(user_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
 
     if not summarized_input:
-        summarized_input = summarize(user_input, chat_history)
+        summarized_input = summarize(user_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
         
     if not summarized_input:
         response = "unable to summarize the data."
@@ -59,7 +62,7 @@ def chat_benchmark(user_input, chat_history):
         return chat_history, response, log_data
     
     if summarized_input.user_requested_columns:
-        query = generate_query(user_input, summarized_input, chat_history)
+        query = generate_query(user_input, summarized_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
         query_result = execute_query(query)
         log_data[6] = query
 

@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import json
 import re
 from xml.dom.minidom import Document
@@ -13,6 +13,7 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders.csv_loader import CSVLoader
+from nlqs.database.sqlite import retrieve_descriptions_and_types_from_db
 from pydantic.v1 import SecretStr
 from langchain.schema import Document
 from discord_bot.parameters import OPENAI_API_KEY
@@ -35,7 +36,23 @@ file_handler.setFormatter(formatter)
 # Add the file handler to the logger
 logger.addHandler(file_handler)
 
-def get_data_vectors() -> Chroma:
+@dataclass
+class SummarizedInput:
+    """ Class to represent the summarized input. """
+    summary: str
+    quantitative_data: Dict[str, str]
+    qualitative_data: Dict[str, str]
+    user_requested_columns: List[str]
+    user_intent: str
+
+
+class Query:
+
+    def __init__(self) -> None:
+        self.column_descriptions, self.numerical_columns, self.categorical_columns = retrieve_descriptions_and_types_from_db()
+
+
+def get_chroma_instance() -> Chroma:
     """Generates a Chroma vector store from the product descriptions CSV file.
 
     Returns:
@@ -49,31 +66,6 @@ def get_data_vectors() -> Chroma:
     data_vectors = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
     return data_vectors
 
-def retrieve_descriptions_and_types_from_db(db_file:sqlite3.Connection = SQLITE_DB_FILE) -> tuple:
-    """ Retrieves descriptions and types from the SQLite database.
-
-    Args:
-        db_file (SQLite database, optional): SQLite database to store all the tables. Defaults to SQLITE_DB_FILE.
-
-    Returns:
-        tuple: Return descriptions, numerical_columns, categorial_columns
-    """
-    conn = sqlite3.connect(db_file)
-    c = conn.cursor()
-
-    # Retrieve descriptions
-    c.execute('SELECT column_name, description FROM column_descriptions')
-    description_rows = c.fetchall()
-    descriptions = {row[0]: row[1] for row in description_rows}
-
-    # Retrieve column types
-    c.execute('SELECT column_name, column_type FROM column_types')
-    type_rows = c.fetchall()
-    numerical_columns = [row[0] for row in type_rows if row[1] == 'numerical']
-    categorical_columns = [row[0] for row in type_rows if row[1] == 'categorical']
-
-    conn.close()
-    return descriptions, numerical_columns, categorical_columns
 
 # Initializes the ChatOpenAI LLM model
 llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY, max_tokens=1000)
@@ -96,17 +88,9 @@ def get_prompt(instruction:str , system_prompt:str=DEFAULT_SYSTEM_PROMPT) -> str
     SYSTEM_PROMPT = f"<<SYS>>\n{system_prompt}\n<</SYS>>\n\n"
     return f"[INST]{SYSTEM_PROMPT}{instruction}[/INST]"
 
-@dataclass
-class SummarizedInput:
-    """ Class to represent the summarized input. """
-    summary: str
-    quantitative_data: Dict[str, str]
-    qualitative_data: Dict[str, str]
-    user_requested_columns: List[str]
-    user_intent: str
 
 # Function to identify qualitative and quantitative data and user intent
-def summarize(user_input:str, chat_history:list[(str, str)]) -> dict:
+def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dictionary, numerical_columns, categorical_columns) -> SummarizedInput:
     """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
 
     Args:
@@ -134,7 +118,7 @@ def summarize(user_input:str, chat_history:list[(str, str)]) -> dict:
     if not user_input.strip():
         return SummarizedInput("", {}, {}, [], "")
     
-    column_descriptions = list(column_descriptions.items())
+    column_descriptions = list(column_descriptions_dictionary.items())
 
     # Summarize the user input
     instruction =  f"""
@@ -204,7 +188,7 @@ def summarize(user_input:str, chat_history:list[(str, str)]) -> dict:
     return summarized_input
 
 # Function to perform a similarity search
-def similarity_search(data_vectors:int, user_input:str) -> str:
+def similarity_search(data_vectors: Chroma, user_input:str) -> str:
     """Performs a similarity search on the database and returns the first similar result.
 
     Args:
@@ -220,7 +204,7 @@ def similarity_search(data_vectors:int, user_input:str) -> str:
     return result
 
 # Function to generate a response based on the user input
-def generate_query(user_input:str, summarized_input: SummarizedInput, chat_history:list[(str, str)]) -> str:
+def generate_query(user_input:str, summarized_input: SummarizedInput, chat_history:List[Tuple[str, str]], numerical_columns, categorical_columns, column_descriptions) -> str:
     """Generates an SQL query based on the user input and chat history.
 
     Args:
@@ -296,9 +280,9 @@ def execute_query(query:str) -> str:
         logger.error(f"Error executing SQL query: {e}")
         return error_message
 
-column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()
-data_vectors = get_data_vectors()
-def chat(user_input:str, chat_history:list[(str, str)]) -> List[str]:
+data_vectors = get_chroma_instance()
+
+def chat(user_input:str, chat_history:List[Tuple[str, str]], ) -> Tuple[str,List[Tuple[str, str]]]:
     """This function is where the whole interaction happens. 
     It takes the user input and chat history as input and returns the response if the user's intent is either phatic_communication, profanity or sql_injection. 
     Else it returns the query result or search similarity result.
@@ -310,14 +294,17 @@ def chat(user_input:str, chat_history:list[(str, str)]) -> List[str]:
     Returns:
         List[str]: The response or query result or search similarity result depending on the user's intent. Along with the updated chat history.
     """
+
+    column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()
+
     if not user_input.strip():
         response = ""
 
     user_input = re.sub(r"{|}", "", user_input)
-    summarized_input = summarize(user_input, chat_history)
+    summarized_input = summarize(user_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
 
     if not summarized_input:
-        summarized_input = summarize(user_input, chat_history)
+        summarized_input = summarize(user_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
 
     if not summarized_input:
         response = ""
@@ -329,7 +316,7 @@ def chat(user_input:str, chat_history:list[(str, str)]) -> List[str]:
     
     else:
         if summarized_input.user_requested_columns:
-            query = generate_query(user_input, summarized_input, chat_history)
+            query = generate_query(user_input, summarized_input, chat_history, numerical_columns, categorical_columns, column_descriptions)
             query_result = execute_query(query)
             if query_result == str([]):
                 query_result = similarity_search(data_vectors, user_input)

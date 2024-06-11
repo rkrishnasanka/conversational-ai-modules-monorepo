@@ -5,7 +5,7 @@ import re
 from chatbot import Chatbot
 from discord_bot.state import BotState, empty_active_users, user_exists, new_user
 from discord_bot.memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
-from discord_bot.inventoryquery import summarize
+from nlqs.query import chat, summarize
 
 
 # Global variable to store the state of the bot
@@ -89,7 +89,7 @@ def create_bot() -> commands.Bot:
                 # TODO: pass the data to the conversational chatbot
                 #reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
                 reply1 = chatbot_instance.converse(user_input, [])
-                reply= summarize(user_input, chat_history)
+                reply= chat(user_input, chat_history)
                 if reply is None:
                     print("ERROR - Summarization failed")
                     reply = ""
