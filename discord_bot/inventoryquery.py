@@ -1,8 +1,10 @@
-from typing import List
+from typing import List, Dict
+import json
+import re
 from xml.dom.minidom import Document
-from discord_bot.parameters import OPENAI_API_KEY, PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE
-from langchain import FAISS
-import pandas as pd
+import logging
+from dataclasses import dataclass
+from discord_bot.parameters import OPENAI_API_KEY, PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE, SQL_TABLE_NAME, LOGGER_FILE
 import sqlite3
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
@@ -15,249 +17,326 @@ from pydantic.v1 import SecretStr
 from langchain.schema import Document
 from discord_bot.parameters import OPENAI_API_KEY
 
+# Create a logger object
+logger = logging.getLogger(__name__)
 
-# Load data from CSV and initialize FAISS vector store
-loader = CSVLoader(file_path=PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
-data = loader.load()
-# db_csv = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
+# Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR)
+logger.setLevel(logging.INFO)
 
-# Extract the dataframe from the documents
-df = pd.DataFrame([doc.metadata for doc in data])
+# Create a file handler to save logs
+file_handler = logging.FileHandler(LOGGER_FILE)
 
-# Print column names to verify them
-print("Column names in the DataFrame:", df.columns.tolist())
+# Create a formatter to format the log messages
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
-# Create new documents with the description as the page content and other columns as metadata
-data: List[Document] = [Document(page_content=row['description'], metadata={
-    'Product': row['Product'],
-    'Category': row['Category'],
-    'MedicalBenefits': row['MedicalBenefits'],
-    'CustomerRating': row['CustomerRating'],
-    'PurchaseFrequency': row['PurchaseFrequency']
-}) for _, row in df.iterrows()]
+# Add the formatter to the file handler
+file_handler.setFormatter(formatter)
 
-db_csv = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
+# Add the file handler to the logger
+logger.addHandler(file_handler)
 
+def get_data_vectors() -> Chroma:
+    """Generates a Chroma vector store from the product descriptions CSV file.
 
+    Returns:
+       Chroma vector store : embeddings for the CSV file.
+    """
+    # Load data from CSV file using CSVLoader.
+    loader = CSVLoader(file_path=PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
+    # Contains the loaded data.
+    data = loader.load()
+    # Creates a Chroma (or) ChromaDB vector store using the loaded data and OpenAI embeddings.
+    data_vectors = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
+    return data_vectors
 
-# Fetch data from SQLite
-def fetch_data_from_sqlite() -> pd.DataFrame:
-    try:
-        conn = sqlite3.connect(SQLITE_DB_FILE)
-        query = "SELECT * FROM new_dataset"
-        df = pd.read_sql_query(query, conn)
-    except sqlite3.Error as e:
-        print(f"Error fetching data: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame on error
-    finally:
-        conn.close()
-    return df
+def retrieve_descriptions_and_types_from_db(db_file:sqlite3.Connection = SQLITE_DB_FILE) -> tuple:
+    """ Retrieves descriptions and types from the SQLite database.
 
-df = fetch_data_from_sqlite()
+    Args:
+        db_file (SQLite database, optional): SQLite database to store all the tables. Defaults to SQLITE_DB_FILE.
 
-# Initialize LLM
-llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY)
+    Returns:
+        tuple: Return descriptions, numerical_columns, categorial_columns
+    """
+    conn = sqlite3.connect(db_file)
+    c = conn.cursor()
 
-# Default system prompt
+    # Retrieve descriptions
+    c.execute('SELECT column_name, description FROM column_descriptions')
+    description_rows = c.fetchall()
+    descriptions = {row[0]: row[1] for row in description_rows}
+
+    # Retrieve column types
+    c.execute('SELECT column_name, column_type FROM column_types')
+    type_rows = c.fetchall()
+    numerical_columns = [row[0] for row in type_rows if row[1] == 'numerical']
+    categorical_columns = [row[0] for row in type_rows if row[1] == 'categorical']
+
+    conn.close()
+    return descriptions, numerical_columns, categorical_columns
+
+# Initializes the ChatOpenAI LLM model
+llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY, max_tokens=1000)
+
+# Default system prompt for the LLM.
 DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
 
-# Function to get the prompt
-def get_prompt(instruction, system_prompt=DEFAULT_SYSTEM_PROMPT) -> str:
+# Generates a prompt for the LLM based on the instruction and system prompt.
+def get_prompt(instruction:str , system_prompt:str=DEFAULT_SYSTEM_PROMPT) -> str:
+    """Generates the prompt for the LLM.
+
+    Args:
+        instruction (str): The instruction for the LLM.
+        system_prompt (str, optional): The system prompt for the LLM. Defaults to DEFAULT_SYSTEM_PROMPT.
+
+    Returns:
+        str: The prompt for the LLM.
+
+    """
     SYSTEM_PROMPT = f"<<SYS>>\n{system_prompt}\n<</SYS>>\n\n"
     return f"[INST]{SYSTEM_PROMPT}{instruction}[/INST]"
 
+@dataclass
+class SummarizedInput:
+    """ Class to represent the summarized input. """
+    summary: str
+    quantitative_data: Dict[str, str]
+    qualitative_data: Dict[str, str]
+    user_requested_columns: List[str]
+    user_intent: str
+
 # Function to identify qualitative and quantitative data and user intent
-def summarize(user_input, chat_history):
+def summarize(user_input:str, chat_history:list[(str, str)]) -> dict:
+    """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
+
+    Args:
+        user_input (str): The user input.
+        chat_history (list[(str, str)]): The chat history.
+
+    Returns:
+        dict: {
+            "summary": str, 
+            "quantitative_data": {
+                "column name": str, 
+                "column name": str, 
+                "column name": str,
+            }, 
+            "qualitative_data": {
+                "column name": str, 
+                "column name": str, 
+                "column name": str,
+            }, 
+            "user_requested_columns": list,
+            "user_intent":str,
+        }
+    """
     # Check for empty or whitespace-only input
     if not user_input.strip():
-        response = "Please provide a valid input."
-        chat_history.append((user_input, response))
-        return response, chat_history
+        return SummarizedInput("", {}, {}, [], "")
+    
+    column_descriptions = list(column_descriptions.items())
 
-    # First summarize the input
-    instruction = f"Summarize the following user input for me: {user_input}"
+    # Summarize the user input
+    instruction =  f"""
+    You will receive a user input and the chat history. Your task is to:
+    1. Analyze the user input and identify key details based on our available data and chat history. 
+    2. Summarize the input, classify the data into qualitative and quantitative categories, 
+    3. Identify relevant columns from which we can provide an answer. 
+       Pay close attention to the user's intent: 
+       Are they seeking information about products, medications, treatments, or other relevant categories? 
+    4. Classify the user's intent. Possible intents: phatic_communication, sql_injection, profanity and other.
+    5. Output the result in a JSON format.
+    
+    The output JSON should have the following structure:
+
+        "summary": "summary of the user input",
+        "quantitative_data":
+                            " 
+                               "column name": "data mentioned in the user input",
+                               "column name": "data mentioned in the user input",
+                               "column name": "data mentioned in the user input",
+                             ",
+        "qualitative_data": 
+                            " 
+                               "column name": "data mentioned in the user input",
+                               "column name": "data mentioned in the user input",
+                               "column name": "data mentioned in the user input",
+                             ",
+        "user_requested_columns": "List of columns the user wants data from. If none, leave it as an empty list.",
+        "user_intent": "The user's intent. If none, leave it as an empty string.",
+    
+    The data we have and chat history:
+    User input: {user_input}\n\n 
+    Data:{column_descriptions}\n\n 
+    numerical columns in the data: {numerical_columns}\n\n 
+    descriptive columns in the data: {categorical_columns}\n\n 
+    Chat history: {chat_history}
+
+    Now, summarize the user input and provide the structured output in JSON format.
+    """
     system_prompt = "You are an expert in summarization and expressing key ideas succinctly."
     prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["user_input"])
-    llm_chain = LLMChain(prompt=prompt_template, llm=llm)
-
-    summarized_input = llm_chain.run({"user_input": user_input})
-    print(summarized_input)
-
-    # Analyze the summarized input to find user intent
-    return analyze_intent(user_input, summarized_input, chat_history)
-
-# Function to analyze summary and determine if an SQL query can be generated
-def analyze_summary(user_input, summarized_input, chat_history):
-    instruction = f"Analyse the following summary and tell me if we can create an SQL query. The columns in the database were Product, Category, MedicalBenefits, CustomerRating ,PurchaseFrequency ,description. Name of the table is new_dataset. Just answer only TRUE or FALSE. Summary: {summarized_input}"
-    system_prompt = "You are an expert in analyzing data."
-    prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["user_input"])
-    llm_chain = LLMChain(prompt=prompt_template, llm=llm)
-
-    analysis_result = llm_chain.run({"user_input": summarized_input}).strip().lower()
-    print(f"analysis result: {analysis_result}")
-    if analysis_result == "true":
-        return generate_query(user_input, summarized_input, chat_history)
-    else:
-        return similarity_search(user_input, summarized_input, chat_history)    
-
-# Function to analyze user intent
-def analyze_intent(user_input, summarized_input, chat_history):
-    # Instruction to classify user intent
-    instruction = f"Classify the user's intent based on the summary. The summary is: {summarized_input}\n\nPossible intents: phatic_communication, sql_injection, profinity and other. Provide only the intent."
-    system_prompt = "You are an expert in natural language understanding."
-    prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["user_input"])
-    llm_chain = LLMChain(prompt=prompt_template, llm=llm)
-
-    intent = llm_chain.run({"user_input": summarized_input}).strip().lower()
-    print(f"User intent: {intent}")
-
-    if intent == "phatic_communication":
-        return generate_greeting_response(user_input, chat_history)
-    elif intent == "sql_injection":
-        return sql_injection(user_input, chat_history)
-    elif intent == "profinity":
-        return generate_default_response(user_input, chat_history)
-    elif intent == "other":
-        return analyze_summary(user_input, summarized_input, chat_history)
-        # return analyze_similarity_result(user_input, summarized_input, result, chat_history)
-        # return handle_similarity_search(user_input, summarized_input, chat_history)
-
-def similarity_search(user_input,summarized_input, chat_history):
-        result = db_csv.similarity_search(user_input)
-        result = result[0].page_content
-        print(result)
-        # return analyze_similarity_result(user_input, summarized_input, result, chat_history)
-        return generate_response_non_query(user_input, summarized_input, result, chat_history)
-
-# def analyze_similarity_result(user_input, summarized_input, result, chat_history):
-#     instruction = f"Analyse the following user_input, result and tell me if result matches what the user is looking for. Just answer only TRUE or FALSE. user_input: {user_input}\n\n result: {result}"
-#     system_prompt = "You are an expert in analyzing data."
-#     prompt = get_prompt(instruction, system_prompt)
-#     prompt_template = PromptTemplate(template=prompt, input_variables=["user_input"])
-#     llm_chain = LLMChain(prompt=prompt_template, llm=llm)
-
-#     analysis_result = llm_chain.run({"user_input": user_input}).strip().lower()
-#     print(f"analyze_similarity_search:{analysis_result}")
-#     if analysis_result == "true":
-#         return generate_response_non_query(user_input, summarized_input, result, chat_history)
-#     else:
-#         return generate_default_response(user_input, chat_history)
-
-# Function to generate a greeting response for phatic communication
-def generate_greeting_response(user_input, chat_history):
-    instruction = f"Provide an answer based on the user input. User input: {user_input}\n\n"
-    system_prompt = "You are a helpful medical assistant."
-    prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "summarized_input"])
+    prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "user_input"])
     memory = ConversationBufferMemory(memory_key="chat_history")
 
     llm_chain = LLMChain(llm=llm, prompt=prompt_template, verbose=True, memory=memory)
-    response = llm_chain.run({"chat_history": chat_history, "user_input": user_input})
     
-    chat_history.append((user_input, response))
-    return response, chat_history
+    summarized_input_str = llm_chain.run({"chat_history": chat_history, "user_input": user_input})
+    try:
+        # Attempt to parse the summarized input as JSON
+        summarized_input_dict = json.loads(summarized_input_str)
+    except json.JSONDecodeError:
+        # If parsing fails, return an empty SummarizedInput
+        summarized_input_dict = {}
 
-# Function to generate a default response for unrecognized intents
-def generate_default_response(user_input, chat_history):
-    response = "Sorry, I couldn't answer your question. Could you please provide more details or ask something else?"
-    chat_history.append((user_input, response))
-    return response, chat_history
-        
-def sql_injection(user_input, chat_history):
-    response = "Lol 🤣🤣, you are tring an SQL injection on an LLM."
-    chat_history.append((user_input, response))
-    return response, chat_history
+    logger.info("--------------------------")
+    logger.info(f"user input: {user_input}")
+    logger.info(f"Summarized input: {summarized_input_dict}")
 
+    summarized_input = SummarizedInput(
+        summary=summarized_input_dict.get("summary", ""),
+        quantitative_data=summarized_input_dict.get("quantitative_data", {}),
+        qualitative_data=summarized_input_dict.get("qualitative_data", {}),
+        user_requested_columns=summarized_input_dict.get("user_requested_columns", []),
+        user_intent=summarized_input_dict.get("user_intent", "")
+    )
 
-# from typing import List, Tuple
-# from langchain.schema import Document
+    return summarized_input
 
-# def handle_similarity_search(user_input, summarized_input, chat_history):
-#     # Perform similarity search
-#     results = db_csv.similarity_search_with_score(user_input)
+# Function to perform a similarity search
+def similarity_search(data_vectors:int, user_input:str) -> str:
+    """Performs a similarity search on the database and returns the first similar result.
+
+    Args:
+        user_input (str): the user input.
+
+    Returns:
+        str: the first similar result.
+
+    """
+    result = data_vectors.similarity_search(user_input)
+    result = result[0].page_content
+    logger.info(f"Result: {result}")
+    return result
+
+# Function to generate a response based on the user input
+def generate_query(user_input:str, summarized_input: SummarizedInput, chat_history:list[(str, str)]) -> str:
+    """Generates an SQL query based on the user input and chat history.
+
+    Args:
+        user_input (str): the user input.
+        summarized_input (dict): the summarized input.
+        chat_history (list[(str, str)]): the chat history.
+
+    Returns:
+        str: execute_query function executes the SQL query
+    """
+    quantitative_data = list(summarized_input.quantitative_data.items())
+    qualitative_data = list(summarized_input.qualitative_data.items())
+    user_requested_columns = summarized_input.user_requested_columns
+
+    instruction = f"""
+    Generate an SQLite query based on the user input and other data. For numerical columns, use exact matches. 
+    For descriptive columns, use 'LIKE' for partial matches but handle possible spelling mistakes and close matches. 
+    ORDER BY CustomerRating DESC LIMIT 3 is needed. 
     
-#     # Define the similarity score threshold
-#     threshold = 0.3
-    
-#     # Filter and sort results based on similarity score
-#     filtered_results = [result for result in results if result[1] >= threshold]
-#     filtered_results.sort(key=lambda x: x[1], reverse=True)
-#     print(filtered_results[0])
-#     if filtered_results:
-#         best_result = filtered_results[0].page_content
-        
-#         return generate_response_non_query(user_input, summarized_input, best_result, chat_history)
-#     else:
-#         return generate_default_response(user_input, chat_history)
+    Generate the query according to the user input, chat history, and database schema. 
+    Ensure that the query is robust, handles various user input scenarios, and incorporates appropriate conditions.
+    Answer just the query without any explanation and code. 
 
-def generate_query(user_input, summarized_input, chat_history):
-    instruction = f"Generate only a sqlite query without any extra text based on the following user input. Don't query using '=' try to use 'like' The columns in the database were Product, Category, MedicalBenefits, CustomerRating, PurchaseFrequency, description. Name of the table is new_dataset. Generate the query according to user input. user input: {user_input}"
-    system_prompt = "You are an expert in SQL queries."
+    The data we have:
+    numerical columns in the data: {numerical_columns}\n\n 
+    descriptive columns in the data: {categorical_columns}\n\n 
+    The columns in the database were {', '.join(column_descriptions.keys())}\n\n
+    Table name: {SQL_TABLE_NAME}\n\n
+    User input: {user_input}\n\n
+    quantitative data in the user input: {quantitative_data}\n\n
+    qualitative data in the user input: {qualitative_data}\n\n
+    user requested columns: {user_requested_columns}\n\n
+    Chat history: {chat_history}\n\n
+
+    Generate the SQLite query below:
+    """
+
+    system_prompt = "You are an expert in SQL queries. Create robust queries based on the user requirements and database schema."
     prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["user_input"])
-    llm_chain = LLMChain(prompt=prompt_template, llm=llm)
+    prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "user_input"])
+    memory = ConversationBufferMemory(memory_key="chat_history")
 
-    query = llm_chain.run({"user_input": summarized_input}).strip()
-    print(query)
-    return execute_query(user_input, summarized_input, query, chat_history)
+    llm_chain = LLMChain(llm=llm, prompt=prompt_template, verbose=True, memory=memory)
+
+    query = llm_chain.run({"chat_history": chat_history, "user_input": user_input}).strip()
+    logger.info(f"Query: {query}")
+
+    return query
 
 # Function to execute the SQL query
-def execute_query(user_input, summarized_input, query, chat_history):
+def execute_query(query:str) -> str:
+    """ Executes the SQL query and returns the result.
+
+    Args:
+        query (str): the SQL query.
+
+    Returns:
+        str: the result of the query.
+    """
     try:
+        #SQLite connection
         conn = sqlite3.connect(SQLITE_DB_FILE)
         cursor = conn.cursor()
         cursor.execute(query)
         result = cursor.fetchall()
         conn.close()
         result = str(result)
+        logger.info(f"Query Result: {result}")
 
-        return generate_response(user_input, summarized_input, result if result else "No results found.", chat_history)
+        return result if result else "No results found."
     except sqlite3.Error as e:
         error_message = f"Error executing SQL query: {e}"
-        print(error_message)
-        return generate_response(user_input, summarized_input, error_message, chat_history)
+        logger.error(f"Error executing SQL query: {e}")
+        return error_message
 
+column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()
+data_vectors = get_data_vectors()
+def chat(user_input:str, chat_history:list[(str, str)]) -> List[str]:
+    """This function is where the whole interaction happens. 
+    It takes the user input and chat history as input and returns the response if the user's intent is either phatic_communication, profanity or sql_injection. 
+    Else it returns the query result or search similarity result.
 
-# Function to generate a response based on the query result
-def generate_response(user_input, summarized_input, query_result, chat_history):
-    instruction = f"Provide an answer based on the query result and user input. User input: {summarized_input}\n\nQuery result: {query_result}"
-    system_prompt = "You are a professional medical assistant, adept at handling inquiries related to medical products."
-    prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "user_input"])
-    memory = ConversationBufferMemory(memory_key="chat_history")
+    Args:
+        user_input (str): The user's input.
+        chat_history (list[(str, str)]): The chat history.
 
-    llm_chain = LLMChain(llm=llm, prompt=prompt_template, verbose=True, memory=memory)
-    response = llm_chain.run({"chat_history": chat_history, "user_input": query_result})
+    Returns:
+        List[str]: The response or query result or search similarity result depending on the user's intent. Along with the updated chat history.
+    """
+    if not user_input.strip():
+        response = ""
+
+    user_input = re.sub(r"{|}", "", user_input)
+    summarized_input = summarize(user_input, chat_history)
+
+    if not summarized_input:
+        summarized_input = summarize(user_input, chat_history)
+
+    if not summarized_input:
+        response = ""
+
+    intent = summarized_input.user_intent
     
-    chat_history.append((user_input, response))
-    return response, chat_history
-
-# Function to generate a response based on similarity search result
-def generate_response_non_query(user_input, summarized_input, result, chat_history):
-    instruction = f"Provide an answer based on the similarity search result and user input. User input: {summarized_input}\n\nSimilarity search result: {result}"
-    system_prompt = "You are a professional medical assistant, adept at handling inquiries related to medical products."
-    prompt = get_prompt(instruction, system_prompt)
-    prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "summarized_input"])
-    memory = ConversationBufferMemory(memory_key="chat_history")
-
-    llm_chain = LLMChain(llm=llm, prompt=prompt_template, verbose=True, memory=memory)
-    response = llm_chain.run({"chat_history": chat_history, "user_input": summarized_input})
+    if intent == "phatic_communication" or intent == "sql_injection" or intent == "profanity":
+        response = ""
     
-    chat_history.append((user_input, response))
+    else:
+        if summarized_input.user_requested_columns:
+            query = generate_query(user_input, summarized_input, chat_history)
+            query_result = execute_query(query)
+            if query_result == str([]):
+                query_result = similarity_search(data_vectors, user_input)
+
+            response = query_result
+        else:
+            response = ""
+
+    chat_history.append((user_input,response))
     return response, chat_history
-
-# # Gradio interface
-# with gr.Blocks(title="Chatbot using OpenAI") as demo:
-#     gr.Markdown("# Chatbot using OpenAI")
-
-#     chatbot = gr.Chatbot([], elem_id="chatbot", height=700)
-#     msg = gr.Textbox(show_copy_button=True)
-
-#     clear = gr.ClearButton([msg, chatbot])
-
-#     msg.submit(Summarize, [msg, chatbot], [msg, chatbot])
-
-# demo.launch(debug=True, share=True)

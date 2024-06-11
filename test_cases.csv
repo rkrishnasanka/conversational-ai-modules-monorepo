@@ -1,0 +1,50 @@
+interaction_type,user_input
+phatic_communication,Hello!
+phatic_communication,How are you?
+phatic_communication,Good morning!
+phatic_communication,Hi there!
+phatic_communication,Good afternoon!
+sql_injection,DROP TABLE users;
+sql_injection,SELECT * FROM users WHERE '1'='1';
+sql_injection,' OR 1=1 --
+sql_injection,'; DELETE FROM users; --
+sql_injection,' OR 'a'='a';
+profanity,You are stupid!
+profanity,What a dumb response!
+profanity,Shut up!
+profanity,You are an idiot!
+profanity,Go to hell!
+other,Tell me about the medical benefits of Puffco Peak Pro.
+other,What is the customer rating for Moroccan Mint?
+other,How often is Blush Hand Pipe purchased?
+other,What category does 1906 Drops fall into?
+other,Describe the benefits of Veil Odor Eliminator 2oz.
+other,Can you tell me about the benefits of the Blush Hand Pipe?
+other,What is the rating for Veil Odor Eliminator 8oz?
+other,How frequently is the Wild Cherry Gummies purchased?
+other,What type of product is the Moroccan Mint?
+other,Describe the features of the Cloud Hand Pipe.
+query_generation,Show me the products for nausea relief with a rating of 9.
+query_generation,What are the accessories that help with seizure control?
+query_generation,Find products that are rarely purchased and offer muscle relaxation.
+query_generation,List all the gummies that reduce anxiety and have a customer rating of 4.
+query_generation,Which chocolate bars are often bought for reducing inflammation?
+query_generation,Show me accessories with a customer rating above 7.
+query_generation,What products offer muscle relaxation and are often purchased?
+query_generation,Find the products in the 'Gummies' category that help with appetite stimulation.
+query_generation,List all chocolate bars that are rarely purchased and help with seizure control.
+query_generation,Which pre-rolls are effective for nausea relief?
+similarity_search,I need something for improved sleep.
+similarity_search,I'm looking for accessories for nausea relief.
+similarity_search,Can you suggest something for muscle relaxation?
+similarity_search,What's good for anxiety reduction in a gummy form?
+similarity_search,Do you have any chocolate bars for seizure control?
+similarity_search,I need something that helps with anxiety reduction.
+similarity_search,Can you recommend an accessory for improved sleep?
+similarity_search,Looking for gummies that enhance focus.
+similarity_search,What are good caps for anxiety reduction?
+similarity_search,Do you have any mints that help with sleep?
+other,Who is the prime minister of India?
+other,Who won the 2024 IPL cup?
+other,What was the last movie of Sr. NTR?
+other,What is FDA?

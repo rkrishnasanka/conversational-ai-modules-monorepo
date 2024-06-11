@@ -1,0 +1,21 @@
+"""
+This the bot with same functionality as the discord bot but with gradio instead of discord.
+This is to show off the bot with less time and effort.
+And this could be greatful while testing the bot.
+"""
+
+import gradio as gr
+from discord_bot.inventoryquery import chat
+
+# Gradio interface
+with gr.Blocks(title="Chatbot using OpenAI") as demo:
+    gr.Markdown("# Chatbot using OpenAI")
+
+    chatbot = gr.Chatbot([], elem_id="chatbot", height=700)
+    msg = gr.Textbox(show_copy_button=True)
+
+    clear = gr.ClearButton([msg, chatbot])
+
+    msg.submit(chat, [msg, chatbot], [msg, chatbot])
+
+demo.launch(debug=True, share=True)

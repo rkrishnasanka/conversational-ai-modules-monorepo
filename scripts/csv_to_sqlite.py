@@ -5,25 +5,22 @@ the API to query the SQLite database.
 
 import sqlite3
 import pandas as pd
-
-# Define the CSV file path and the SQLite database name
-csv_file_path = 'product_descriptions.csv'
-sqlite_db_name = 'aegion.db'  # It's good practice to include the .db extension
+from discord_bot.parameters import PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE, SQL_TABLE_NAME
 
 try:
     # Read the CSV file into a DataFrame
     # Attempt using UTF-8 encoding first
     try:
-        df = pd.read_csv(csv_file_path)
+        df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV)
     except UnicodeDecodeError:
         # If UTF-8 fails, fall back to ISO-8859-1
-        df = pd.read_csv(csv_file_path, encoding='ISO-8859-1')
+        df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
     
     # Connect to the SQLite database
-    conn = sqlite3.connect(sqlite_db_name)
+    conn = sqlite3.connect(SQLITE_DB_FILE)
 
     # Write the DataFrame to a SQLite table
-    df.to_sql('new_dataset', conn, if_exists='replace', index=False)
+    df.to_sql(SQL_TABLE_NAME, conn, if_exists='replace', index=False)
 
     # Commit the changes
     conn.commit()
