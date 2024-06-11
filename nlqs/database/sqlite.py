@@ -43,3 +43,28 @@ def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tup
 
     conn.close()
     return descriptions, numerical_columns, categorical_columns
+
+def execute_query(query:str) -> str:
+    """ Executes the SQL query and returns the result.
+
+    Args:
+        query (str): the SQL query.
+
+    Returns:
+        str: the result of the query.
+    """
+    try:
+        #SQLite connection
+        conn = sqlite3.connect(SQLITE_DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
+        conn.close()
+        result = str(result)
+        # logger.info(f"Query Result: {result}")
+
+        return result if result else "No results found."
+    except sqlite3.Error as e:
+        error_message = f"Error executing SQL query: {e}"
+        # logger.error(f"Error executing SQL query: {e}")
+        return error_message
