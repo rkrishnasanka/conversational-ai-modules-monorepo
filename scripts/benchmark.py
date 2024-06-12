@@ -5,7 +5,7 @@
 import csv
 import os
 import re
-from nlqs.database.sqlite import execute_query, retrieve_descriptions_and_types_from_db
+from nlqs.database.sqlite import execute_query, retrieve_descriptions_and_types_from_db, validate_query
 from nlqs.query import get_chroma_instance, summarize, generate_query, similarity_search
 
 # CSV file paths
@@ -62,24 +62,27 @@ def chat_benchmark(user_input, chat_history):
         return chat_history, response, log_data
     
     if summarized_input.user_requested_columns:
-        query = generate_query(user_input, summarized_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
-        query_result = execute_query(query)
-        log_data[6] = query
+        genenerted_query = generate_query(user_input, summarized_input, chat_history, column_descriptions, numerical_columns, categorical_columns)
+        if validate_query(genenerted_query):
+            query_result = execute_query(genenerted_query)
+            log_data[6] = genenerted_query
 
-        if query_result == str([]):
-            similarity_result = similarity_search(data_vectors, user_input)
-            response = "Similar data fetched."
-            log_data[7] = similarity_result
+            if query_result == str([]):
+                similarity_result = similarity_search(data_vectors, user_input)
+                response = "Similar data fetched."
+                log_data[7] = similarity_result
+            else:
+                response = "Data fetched from database."
+                log_data[7] = query_result
         else:
-            response = "Data fetched from database."
-            log_data[7] = query_result
-            
-        log_data[8] = response
+            log_data[6] = "none"
+            response = "Sorry, I cannot process this request."
+            log_data[7] = "none"          
     else:
         response = "Sorry, I cannot process this request."
         chat_history.append((user_input, response))
-        log_data[8] = response
     
+    log_data[8] = response
     chat_history.append((user_input, response))
     return chat_history, response, log_data
 

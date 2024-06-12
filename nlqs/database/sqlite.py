@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from typing import Tuple
 from discord_bot.parameters import SQLITE_DB_FILE
@@ -16,7 +17,12 @@ class SQLiteDriver(AbstractDriver):
 
     def execute_query(self, query):
         pass
+    
+    def retrieve_descriptions_and_types_from_db(self, db_file):
+        pass
 
+    def validate_query(self, query, db_file):
+        pass
 
 def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tuple:
     """ Retrieves descriptions and types from the SQLite database.
@@ -43,6 +49,54 @@ def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tup
 
     conn.close()
     return descriptions, numerical_columns, categorical_columns
+
+def validate_query(query: str, db_file: str = SQLITE_DB_FILE) -> bool:
+    """ Validates the generated SQL query against the database schema and returns True if valid, False otherwise.
+
+    Args:
+        query (str): sql query to be validated.
+        db_file (str, optional): sqlite database file to be used. Defaults to SQLITE_DB_FILE.
+
+    Returns:
+        bool: True if query is valid, False otherwise.
+    """
+    # Check for basic syntax errors
+    if not query.strip() or not query.lower().startswith("select"):
+        return False
+
+    # Connect to the database
+    try:
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+    except sqlite3.Error as e:
+        print(f"Error connecting to database: {e}")
+        return False
+
+    # Extract table name and columns from the query
+    try:
+        table_name = re.search(r"FROM\s+(.+?)\s+", query, re.IGNORECASE).group(1).strip()
+        columns = re.findall(r"SELECT\s+(.+?)\s+FROM", query, re.IGNORECASE)[0].strip().split(",")
+    except AttributeError:
+        print("Error extracting table name or columns from query.")
+        return False
+
+    # Check if table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+    if not cursor.fetchone():
+        print(f"Table '{table_name}' does not exist in the database.")
+        return False
+
+    # Check if columns exist in the table
+    cursor.execute("PRAGMA table_info({})".format(table_name))
+    table_columns = [column[1] for column in cursor.fetchall()]
+    for column in columns:
+        column = column.strip()
+        if column not in table_columns:
+            print(f"Column '{column}' does not exist in table '{table_name}'.")
+            return False
+        
+    # If all checks pass, the query is considered valid
+    return True
 
 def execute_query(query:str) -> str:
     """ Executes the SQL query and returns the result.

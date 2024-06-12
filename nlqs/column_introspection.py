@@ -5,19 +5,40 @@ import pandas as pd
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
-from discord_bot.parameters import OPENAI_API_KEY, SQLITE_DB_FILE
+from discord_bot.parameters import OPENAI_API_KEY, SQLITE_DB_FILE, SQL_TABLE_NAME
 
-def get_column_descriptions(dataframe, input_text) -> dict:
+# Fetch data from SQLite
+def fetch_data_from_sqlite(db_file, table_name):
+    try:
+        conn = sqlite3.connect(db_file)
+        query = f"SELECT * FROM {table_name}"
+        df = pd.read_sql_query(query, conn)
+    except sqlite3.Error as e:
+        print(f"Error fetching data: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame on error
+    finally:
+        conn.close()
+    return df
+
+def generate_sample_data(dataframe):
+    sample_data_list = []
+    for column in dataframe.columns:
+        col_data = dataframe[column]
+        col_type = col_data.dtype
+        sample_data = col_data.dropna().sample(min(5, len(col_data))).tolist()
+        sample_data_str = ', '.join(map(str, sample_data))
+        sample_data_list.append(f"{column}: {sample_data_str}, {col_type}")
+    return sample_data_list
+
+def get_column_descriptions(sample_data, input_text) -> dict:
     """Get column descriptions from OpenAI API."""
     # Initialize an empty dictionary to store column descriptions
     descriptions = {}
 
-    for column in dataframe.columns:
-        # Get column data
-        col_data = dataframe[column]
-        col_type = col_data.dtype
-        sample_data = dataframe[column].dropna().sample(min(5, len(dataframe[column]))).tolist()
-        sample_data_str = ', '.join(map(str, sample_data))
+    for item in sample_data:
+        column_info, col_type = item.rsplit(", ", 1)
+        column, sample_data = column_info.split(": ", 1)
+        print(column, col_type, sample_data)
 
         # Prepare the prompt
         prompt = ChatPromptTemplate.from_messages(
@@ -29,7 +50,7 @@ def get_column_descriptions(dataframe, input_text) -> dict:
                 
                 Please provide a detailed description of this column, including its potential meaning, use, and importance in a dataset. Use sample data to identify the column's meaning.
                 
-                Sample Data: {sample_data_str}
+                Sample Data: {sample_data}
                 
                 Use the following format:
 
@@ -66,7 +87,7 @@ def get_column_descriptions(dataframe, input_text) -> dict:
     # Return the dictionary of column descriptions
     return descriptions
 
-def store_descriptions_in_db(descriptions, numerical_columns, categorical_columns, db_file=SQLITE_DB_FILE):
+def store_descriptions_in_db(descriptions, numerical_columns, categorical_columns, db_file):
     conn = sqlite3.connect(db_file)
     c = conn.cursor()
 
@@ -107,17 +128,19 @@ def store_descriptions_in_db(descriptions, numerical_columns, categorical_column
     conn.commit()
     conn.close()
 
-data_path = 'product_descriptions.csv'
-df = pd.read_csv(data_path, encoding='ISO-8859-1')
+df = fetch_data_from_sqlite(SQLITE_DB_FILE,SQL_TABLE_NAME)
 
-# Get column descriptions
-column_descriptions = get_column_descriptions(df, input_text="Please provide a detailed description of each column in the given dataset.")
+# Generate sample data for each column
+sample_data_list = generate_sample_data(df)
+
+# Get column descriptions from OpenAI API
+column_descriptions = get_column_descriptions(sample_data_list, input_text="Please provide a detailed description of each column in the given dataset.")
 
 # Identify numerical and categorical columns
 numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
 categorical_columns = df.select_dtypes(include=['object']).columns.tolist()
 
 # Store descriptions and column types in the database
-store_descriptions_in_db(column_descriptions, numerical_columns, categorical_columns)
+store_descriptions_in_db(column_descriptions, numerical_columns, categorical_columns, SQLITE_DB_FILE)
 
 print("Column descriptions and column types stored in the database.")
