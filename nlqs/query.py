@@ -83,7 +83,7 @@ def get_prompt(instruction:str , system_prompt:str=DEFAULT_SYSTEM_PROMPT) -> str
     return f"[INST]{SYSTEM_PROMPT}{instruction}[/INST]"
 
 # Function to identify qualitative and quantitative data and user intent
-def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dictionary:Dict[str,str], numerical_columns:List[str,str], categorical_columns:List[str,str]) -> SummarizedInput:
+def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dictionary:Dict[str,str], numerical_columns:List[str], categorical_columns:List[str]) -> SummarizedInput:
     """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
 
     Args:
@@ -201,7 +201,7 @@ def similarity_search(data_vectors: Chroma, user_input:str) -> str:
         return ""
 
 # Function to generate a response based on the user input
-def generate_query(user_input:str, summarized_input: SummarizedInput, chat_history:List[Tuple[str, str]], column_descriptions:Dict[str,str], numerical_columns:List[str,str], categorical_columns:List[str,str]) -> str:
+def generate_query(user_input:str, summarized_input: SummarizedInput, chat_history:List[Tuple[str, str]], column_descriptions:Dict[str,str], numerical_columns:List[str], categorical_columns:List[str]) -> str:
     """Generates an SQL query based on the user input and chat history.
 
     Args:

@@ -33,6 +33,7 @@ langchain-core = "^0.2.1"
 langchain-openai = "^0.1.7"
 pandas = "^2.2.2"
 
+langchain = "^0.2.5"
 [tool.poetry.group.dev.dependencies]
 flask_testing="0.8.0"
 coverage="^4.0.3"

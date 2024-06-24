@@ -87,12 +87,13 @@ def create_bot() -> commands.Bot:
                 # Assume interaction with the user ......
                 # TODO: pass the data to the conversational chatbot
                 #reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
-                reply1 = chatbot_instance.converse(user_input, [])
-                reply= main_workflow(user_input, chat_history)
-                if reply is None:
+                queried_data, user_chat_history = main_workflow(user_input, chat_history)
+                if queried_data is None:
                     print("ERROR - Summarization failed")
-                    reply = ""
-                print(reply[0])
+                    queried_data = ""
+                print(queried_data)
+                user_input = user_input + queried_data
+                reply = chatbot_instance.converse(user_input, user_chat_history)
                 reply = f"<@{user_id}> " + reply[0]
                 await message.channel.send(reply)
         # To process the commands
@@ -153,3 +154,4 @@ def remove_user_id(input_string: str) -> str:
     
     # Strip any leading or trailing whitespace
     return result.strip()
+

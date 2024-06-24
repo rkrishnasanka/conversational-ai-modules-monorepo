@@ -1,12 +1,14 @@
 import os
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "sk-...")
-DISCORD_TOKEN = os.getenv('DISCORD_TOKEN', "fail")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "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")
+OPENAI_API_KEY = "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"
+# DISCORD_TOKEN = os.getenv('DISCORD_TOKEN', "MTA1NDA5OTk2NzA3MDk3ODE3MA.Gj7Kj-.2IamrxMzpjQNoSGqoJLEGOXgRcOIasE4yphdXs")
+DISCORD_TOKEN = "MTI1MzY3NzcyMzI4OTY1MzM2OA.GyWxPV.yzExw4YRBJCFrk-vlE89Sh1xC743-Meu0iq0ak"
 # SQLite database file
-SQLITE_DB_FILE = "aegion.db"
+SQLITE_DB_FILE = "D://m1n9//LUNA_chatbot//backend//aegion.db"
 
 SQL_TABLE_NAME = "new_dataset"
 
-PRODUCT_DESCRIPTIONS_CSV = "product_descriptions.csv"
+PRODUCT_DESCRIPTIONS_CSV = "D://m1n9//LUNA_chatbot//backend//product_descriptions.csv"
 
 LOGGER_FILE = "chatbot.log"

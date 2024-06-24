@@ -5,6 +5,9 @@ from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
 from discord_bot.parameters import OPENAI_API_KEY, SQLITE_DB_FILE
 
+# OPENAI_API_KEY = "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"
+# SQLITE_DB_FILE = "D://m1n9//LUNA_chatbot//backend//aegion.db"
+
 def get_column_descriptions(dataframe, input_text) -> dict:
     """Get column descriptions from OpenAI API."""
     # Initialize an empty dictionary to store column descriptions
@@ -105,7 +108,7 @@ def store_descriptions_in_db(descriptions, numerical_columns, categorical_column
     conn.commit()
     conn.close()
 
-data_path = 'product_descriptions.csv'
+data_path = 'D://m1n9//LUNA_chatbot//backend//product_descriptions.csv'
 df = pd.read_csv(data_path, encoding='ISO-8859-1')
 
 # Get column descriptions

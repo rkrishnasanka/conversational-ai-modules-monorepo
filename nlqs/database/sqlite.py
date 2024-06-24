@@ -91,7 +91,7 @@ def validate_query(query: str, db_file: str = SQLITE_DB_FILE) -> bool:
     table_columns = [column[1] for column in cursor.fetchall()]
     for column in columns:
         column = column.strip()
-        if column not in table_columns:
+        if column not in table_columns and column != '*':
             print(f"Column '{column}' does not exist in table '{table_name}'.")
             return False
         

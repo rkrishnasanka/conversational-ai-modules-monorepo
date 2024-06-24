@@ -13,7 +13,7 @@ from nlqs.query import get_chroma_instance,summarize, generate_query, similarity
 data_vectors = get_chroma_instance()
 column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()
 
-def main_workflow(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dict:Dict[str,str]=column_descriptions, numerical_columns_list:List[str,str]=numerical_columns, categorical_columns_list:List[str,str]=categorical_columns) -> Tuple[str,List[Tuple[str, str]]]:
+def main_workflow(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dict:Dict[str,str]=column_descriptions, numerical_columns_list:List[str]=numerical_columns, categorical_columns_list:List[str]=categorical_columns) -> Tuple[str,List[Tuple[str, str]]]:
     """This function is where the whole interaction happens. 
     It takes the user input and chat history as input and returns the response if the user's intent is either phatic_communication, profanity or sql_injection. 
     Else it returns the query result or search similarity result and the updated chat history.
@@ -48,7 +48,7 @@ def main_workflow(user_input:str, chat_history:List[Tuple[str, str]], column_des
     
     else:
         if summarized_input.user_requested_columns:
-            genenerted_query = generate_query(user_input, summarized_input, chat_history, numerical_columns_list, categorical_columns_list, column_descriptions_dict)
+            genenerted_query = generate_query(user_input, summarized_input, chat_history, column_descriptions_dict, numerical_columns_list, categorical_columns_list)
             if validate_query(genenerted_query):            
                 query_result = execute_query(genenerted_query)
                 if query_result == str([]):
