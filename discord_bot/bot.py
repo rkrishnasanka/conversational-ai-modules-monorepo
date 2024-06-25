@@ -4,7 +4,7 @@ from discord.ext import commands
 import re
 from typing import Any, List, Optional, Tuple, Union
 from langchain.schema import (AIMessage, BaseMessage, HumanMessage, SystemMessage)
-from chatbot import Chatbot
+from chatbot.conversation import Chatbot
 from discord_bot.state import BotState, empty_active_users, user_exists, new_user
 from discord_bot.memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
 from nlqs.workflow import main_workflow

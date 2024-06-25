@@ -1,6 +1,7 @@
-# Move all the code for generating descriptiosn of the column in here don't accept data frames but rather simple lists of info
-
+from pathlib import Path
+from re import S
 import sqlite3
+from typing import Dict, List, Optional
 import pandas as pd
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
@@ -8,19 +9,36 @@ from langchain_core.prompts import ChatPromptTemplate
 from discord_bot.parameters import OPENAI_API_KEY, SQLITE_DB_FILE, SQL_TABLE_NAME
 
 # Fetch data from SQLite
-def fetch_data_from_sqlite(db_file, table_name):
+def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFrame]:
+    """Fetch data from a SQLite database table.
+
+    Args:
+        db_file (Path): Path to the SQLite database file.
+        table_name (str): Name of the table to fetch data from.
+
+    Returns:
+        Optional[pd.DataFrame]: A DataFrame containing the data from the table, or None if an error occurred.
+    """
     try:
         conn = sqlite3.connect(db_file)
         query = f"SELECT * FROM {table_name}"
         df = pd.read_sql_query(query, conn)
+        conn.close()
     except sqlite3.Error as e:
         print(f"Error fetching data: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame on error
-    finally:
-        conn.close()
+        return None  # Return an empty DataFrame on error
+     
     return df
 
-def generate_sample_data(dataframe):
+def generate_sample_data(dataframe: pd.DataFrame) -> List[str]:
+    """Generate sample data for each column in the DataFrame.
+
+    Args:
+        dataframe (pd.DataFrame): The DataFrame containing the data.
+
+    Returns:
+        List[str]: A list of strings containing the column name, sample data, and data type.
+    """
     sample_data_list = []
     for column in dataframe.columns:
         col_data = dataframe[column]
@@ -30,8 +48,16 @@ def generate_sample_data(dataframe):
         sample_data_list.append(f"{column}: {sample_data_str}, {col_type}")
     return sample_data_list
 
-def get_column_descriptions(sample_data, input_text) -> dict:
-    """Get column descriptions from OpenAI API."""
+def get_column_descriptions(sample_data: List[str], input_text: str) -> Dict:
+    """Generate descriptions for each column in the dataset using OpenAI
+
+    Args:
+        sample_data (str): Sample data for each of the columns in the dataset formatted as ???.
+        input_text (str): The input text to prompt the user for column descriptions.
+
+    Returns:
+        Dict: _description_
+    """    
     # Initialize an empty dictionary to store column descriptions
     descriptions = {}
 
@@ -87,7 +113,15 @@ def get_column_descriptions(sample_data, input_text) -> dict:
     # Return the dictionary of column descriptions
     return descriptions
 
-def store_descriptions_in_db(descriptions, numerical_columns, categorical_columns, db_file):
+def store_descriptions_in_db(descriptions: Dict[str, str], numerical_columns: List[str], categorical_columns: List[str], db_file: Path) -> None:
+    """Store column descriptions and types in the SQLite database.
+
+    Args:
+        descriptions (Dict[str, str]): Dictionary of column descriptions.
+        numerical_columns (List[str]): List of numerical columns.
+        categorical_columns (List[str]): List of categorical columns.
+        db_file (Path): Path to the SQLite database file.
+    """
     conn = sqlite3.connect(db_file)
     c = conn.cursor()
 
@@ -127,20 +161,3 @@ def store_descriptions_in_db(descriptions, numerical_columns, categorical_column
 
     conn.commit()
     conn.close()
-
-df = fetch_data_from_sqlite(SQLITE_DB_FILE,SQL_TABLE_NAME)
-
-# Generate sample data for each column
-sample_data_list = generate_sample_data(df)
-
-# Get column descriptions from OpenAI API
-column_descriptions = get_column_descriptions(sample_data_list, input_text="Please provide a detailed description of each column in the given dataset.")
-
-# Identify numerical and categorical columns
-numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-categorical_columns = df.select_dtypes(include=['object']).columns.tolist()
-
-# Store descriptions and column types in the database
-store_descriptions_in_db(column_descriptions, numerical_columns, categorical_columns, SQLITE_DB_FILE)
-
-print("Column descriptions and column types stored in the database.")

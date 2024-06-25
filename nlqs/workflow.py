@@ -1,10 +1,3 @@
-# def primary_workflow(): # Change this to something more appropriate _workflow suffix
-
-#     # Put the linearized code here and then call the functions in the order you want
-
-#     pass
-
-
 from typing import Dict, List, Tuple
 import re
 from nlqs.database.sqlite import retrieve_descriptions_and_types_from_db, execute_query, validate_query
