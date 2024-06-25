@@ -87,21 +87,26 @@ def create_bot() -> commands.Bot:
         # To Check the state of the bot
         if global_state == BotState.ENGAGED: # If the bot is in Engaged state (user_conversations exist)
             if user_id in active_users:
-                # Assume interaction with the user ......
-                # TODO: pass the data to the conversational chatbot
-                #reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
+                # Assume interaction with the user ......                
+                # Set the typing state on the channel
+                await message.channel.typing()
+                
                 queried_data, user_chat_history = main_workflow(user_input, chat_history[:-1])
                 print(f"Queried Data: {queried_data}")
                 print(f"User Chat History: {user_chat_history}")
+                
                 corrected_chat_history = change_chathistory(user_chat_history)
+                
                 if queried_data is None:
                     print("ERROR - Summarization failed")
                     queried_data = ""
-                # print(queried_data)
+
                 user_input = user_input + queried_data
                 print(f"corrected chat history: {corrected_chat_history}")
+                
                 reply = chatbot_instance.converse(user_input=user_input, previous_messages=corrected_chat_history)
                 reply = f"<@{user_id}> " + reply[0]
+                
                 await message.channel.send(reply)
         # To process the commands
         await bot.process_commands(message)
