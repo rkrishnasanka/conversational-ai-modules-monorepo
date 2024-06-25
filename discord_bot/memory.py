@@ -2,6 +2,8 @@ from typing import Tuple, List
 
 chat_history: List[Tuple[str, str]] = [] # Stores the tuple of  (user_id, message)
 active_users: List[str] = [] # Stores the user_id of active users
+bot_id: str = "Replace" # Bot ID
+
 CHAT_HISTORY_LIMIT = 100
 
 def get_user_chat_history(user_id: str) -> List[str]:

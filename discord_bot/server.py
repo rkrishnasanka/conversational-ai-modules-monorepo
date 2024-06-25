@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 def run_server():
     bot = create_bot()
     bot.run(DISCORD_TOKEN)
+    
 
 
 if __name__ == "__main__":

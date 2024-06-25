@@ -1,6 +1,7 @@
 import discord
 import random
 from discord.ext import commands
+import discord_bot.memory as memory
 import re
 from typing import Any, List, Optional, Tuple, Union
 from langchain.schema import (AIMessage, BaseMessage, HumanMessage, SystemMessage)
@@ -39,7 +40,13 @@ def create_bot() -> commands.Bot:
             return
 
         print(f'{bot.user.name} has connected to Discord!') # Prints in the terminal
+        print(f'Bot ID: {bot.user.id}') 
+
+        # Save the bot's ID
+        memory.bot_id = bot.user.id
+
         global_state = BotState.IDLE # Initial State - Idle
+    
 
 
     #Event
@@ -95,7 +102,7 @@ def create_bot() -> commands.Bot:
                 print(f"Queried Data: {queried_data}")
                 print(f"User Chat History: {user_chat_history}")
                 
-                corrected_chat_history = change_chathistory(user_chat_history)
+                corrected_chat_history = change_chat_history(user_chat_history)
                 
                 if queried_data is None:
                     print("ERROR - Summarization failed")
@@ -104,6 +111,7 @@ def create_bot() -> commands.Bot:
                 user_input = user_input + queried_data
                 print(f"corrected chat history: {corrected_chat_history}")
                 
+                print(f"User Input: {user_input}")
                 reply = chatbot_instance.converse(user_input=user_input, previous_messages=corrected_chat_history)
                 reply = f"<@{user_id}> " + reply[0]
                 
@@ -150,7 +158,7 @@ def create_bot() -> commands.Bot:
 
 from langchain.schema import HumanMessage, AIMessage
 
-def change_chathistory(user_chat_history: List[Tuple[str, str]]) -> List[Union[HumanMessage, AIMessage]]:
+def change_chat_history(user_chat_history: List[Tuple[str, str]]) -> List[Union[HumanMessage, AIMessage]]:
     """Converts a list of tuples representing chat history to a list of HumanMessage and AIMessage objects.
 
     Args:
@@ -163,10 +171,11 @@ def change_chathistory(user_chat_history: List[Tuple[str, str]]) -> List[Union[H
     """
     corrected_chat_history = []
     for sender, message in user_chat_history:
-        if sender == "Human":
-            corrected_chat_history.append(HumanMessage(content=message))
-        elif sender == "AI":
+        if sender is memory.bot_id:
             corrected_chat_history.append(AIMessage(content=message))
+        else:
+            corrected_chat_history.append(HumanMessage(content=message))
+            
     return corrected_chat_history
 
 def remove_user_id(input_string: str) -> str:
