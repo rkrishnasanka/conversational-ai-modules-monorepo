@@ -74,7 +74,10 @@ def validate_query(query: str, db_file: str = SQLITE_DB_FILE) -> bool:
 
     # Extract table name and columns from the query
     try:
-        table_name = re.search(r"FROM\s+(.+?)\s+", query, re.IGNORECASE).group(1).strip()
+        match = re.search(r"FROM\s+(.+?)\s+", query, re.IGNORECASE)
+        if match is None:
+            return False
+        table_name = match.group(1).strip()
         columns = re.findall(r"SELECT\s+(.+?)\s+FROM", query, re.IGNORECASE)[0].strip().split(",")
     except AttributeError:
         print("Error extracting table name or columns from query.")

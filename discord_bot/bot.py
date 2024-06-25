@@ -2,10 +2,13 @@ import discord
 import random
 from discord.ext import commands
 import re
+from typing import Any, List, Optional, Tuple, Union
+from langchain.schema import (AIMessage, BaseMessage, HumanMessage, SystemMessage)
 from chatbot import Chatbot
 from discord_bot.state import BotState, empty_active_users, user_exists, new_user
 from discord_bot.memory import chat_history, active_users, get_user_chat_history, add_to_chat_history, set_user_active, set_user_inactive
 from nlqs.workflow import main_workflow
+from openai import chat
 
 # Global variable to store the state of the bot
 global_state = BotState.IDLE
@@ -87,13 +90,17 @@ def create_bot() -> commands.Bot:
                 # Assume interaction with the user ......
                 # TODO: pass the data to the conversational chatbot
                 #reply = f"This is a dummy reply to whatever the user, <@{user_id}> asked!"
-                queried_data, user_chat_history = main_workflow(user_input, chat_history)
+                queried_data, user_chat_history = main_workflow(user_input, chat_history[:-1])
+                print(f"Queried Data: {queried_data}")
+                print(f"User Chat History: {user_chat_history}")
+                corrected_chat_history = change_chathistory(user_chat_history)
                 if queried_data is None:
                     print("ERROR - Summarization failed")
                     queried_data = ""
-                print(queried_data)
+                # print(queried_data)
                 user_input = user_input + queried_data
-                reply = chatbot_instance.converse(user_input, user_chat_history)
+                print(f"corrected chat history: {corrected_chat_history}")
+                reply = chatbot_instance.converse(user_input=user_input, previous_messages=corrected_chat_history)
                 reply = f"<@{user_id}> " + reply[0]
                 await message.channel.send(reply)
         # To process the commands
@@ -135,6 +142,27 @@ def create_bot() -> commands.Bot:
             await ctx.send("Engaged")
 
     return bot
+
+from langchain.schema import HumanMessage, AIMessage
+
+def change_chathistory(user_chat_history: List[Tuple[str, str]]) -> List[Union[HumanMessage, AIMessage]]:
+    """Converts a list of tuples representing chat history to a list of HumanMessage and AIMessage objects.
+
+    Args:
+        user_chat_history (List[Tuple[str, str]]): A list of tuples where each tuple represents a message in the chat history.
+                                                    The first element of the tuple is the sender (either "Human" or "AI")
+                                                    and the second element is the message content.
+
+    Returns:
+        List[Union[HumanMessage, AIMessage]]: A list of HumanMessage and AIMessage objects representing the chat history.
+    """
+    corrected_chat_history = []
+    for sender, message in user_chat_history:
+        if sender == "Human":
+            corrected_chat_history.append(HumanMessage(content=message))
+        elif sender == "AI":
+            corrected_chat_history.append(AIMessage(content=message))
+    return corrected_chat_history
 
 def remove_user_id(input_string: str) -> str:
     """Removes user IDs from a string

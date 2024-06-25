@@ -222,7 +222,7 @@ def generate_query(user_input:str, summarized_input: SummarizedInput, chat_histo
     instruction = f"""
     Generate an SQLite query based on the user input and other data. For numerical columns, use exact matches. 
     For descriptive columns, use 'LIKE' for partial matches but handle possible spelling mistakes and close matches. 
-    ORDER BY CustomerRating DESC LIMIT 3 is needed. 
+    insert ORDER BY CustomerRating DESC LIMIT 3 if needed. 
     
     Generate the query according to the user input, chat history, and database schema. 
     Ensure that the query is robust, handles various user input scenarios, and incorporates appropriate conditions.
