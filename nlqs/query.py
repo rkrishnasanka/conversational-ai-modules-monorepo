@@ -65,7 +65,7 @@ def get_chroma_instance() -> Chroma:
 llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY, max_tokens=1000)
 
 # Default system prompt for the LLM.
-DEFAULT_SYSTEM_PROMPT = "You are a helpful assistant."
+DEFAULT_SYSTEM_PROMPT = "You are a professional medical assistant, adept at handling inquiries related to medical products."
 
 # Generates a prompt for the LLM based on the instruction and system prompt.
 def get_prompt(instruction:str , system_prompt:str=DEFAULT_SYSTEM_PROMPT) -> str:
@@ -116,12 +116,13 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
     # Summarize the user input
     instruction =  f"""
     You will receive a user input and the chat history. Your task is to:
-    1. Analyze the user input and identify key details based on our available data and chat history. 
-    2. Summarize the input, classify the data into qualitative and quantitative categories, 
-    3. Identify relevant columns from which we can provide an answer. 
-       Pay close attention to the user's intent: 
-       Are they seeking information about products, medications, treatments, or other relevant categories? 
-    4. Classify the user's intent. Possible intents: phatic_communication, sql_injection, profanity and other.
+    1. Analyze the user input and identify key details based on our available data and chat history.
+    2. Summarize the input, classifying the data into qualitative and quantitative categories.
+    3. Identify relevant columns from which we can provide an answer. Pay close attention to the user's intent and specific mentions of data columns:
+       - Are they seeking information about products, medications, treatments, or other relevant categories?
+       - If the user is seeking information about a product, also provide the URL of the product if available.
+       - Look for explicit mentions of column names, synonyms, or phrases that indicate the type of information requested. If the user specifies certain attributes or metrics, consider these as user-requested columns.
+    4. Classify the user's intent. Possible intents include: phatic_communication, sql_injection, profanity, and other.
     5. Output the result in a JSON format.
     
     The output JSON should have the following structure:

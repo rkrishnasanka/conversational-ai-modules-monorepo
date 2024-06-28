@@ -97,8 +97,8 @@ def create_bot() -> commands.Bot:
                 # Assume interaction with the user ......                
                 # Set the typing state on the channel
                 await message.channel.typing()
-                
-                queried_data, user_chat_history = main_workflow(user_input, chat_history[:-1])
+                print(f"Chat History: {chat_history}")
+                queried_data, user_chat_history = main_workflow(user_input, chat_history)
                 print(f"Queried Data: {queried_data}")
                 print(f"User Chat History: {user_chat_history}")
                 

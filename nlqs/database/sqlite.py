@@ -1,8 +1,27 @@
 import re
 import sqlite3
+import logging
 from typing import Tuple
-from discord_bot.parameters import SQLITE_DB_FILE
+from discord_bot.parameters import LOGGER_FILE, SQLITE_DB_FILE
 from nlqs.database.driver import AbstractDriver
+
+# Create a logger object
+logger = logging.getLogger(__name__)
+
+# Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR)
+logger.setLevel(logging.INFO)
+
+# Create a file handler to save logs
+file_handler = logging.FileHandler(LOGGER_FILE)
+
+# Create a formatter to format the log messages
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+
+# Add the formatter to the file handler
+file_handler.setFormatter(formatter)
+
+# Add the file handler to the logger
+logger.addHandler(file_handler)
 
 class SQLiteDriver(AbstractDriver):
 
@@ -118,10 +137,10 @@ def execute_query(query:str) -> str:
         result = cursor.fetchall()
         conn.close()
         result = str(result)
-        # logger.info(f"Query Result: {result}")
+        logger.info(f"Query Result: {result}")
 
         return result if result else "No results found."
     except sqlite3.Error as e:
         error_message = f"Error executing SQL query: {e}"
-        # logger.error(f"Error executing SQL query: {e}")
+        logger.error(f"Error executing SQL query: {e}")
         return error_message

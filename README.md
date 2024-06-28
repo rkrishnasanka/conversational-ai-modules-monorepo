@@ -56,7 +56,7 @@ docker run -p 8080:8080 --env-file ../.env  swagger_server
 Run the following command to start the discord bot (make sure your in the poetry environment after you run `poetry install`)
 
 ```sh
-start-discord-bo
+start-discord-bot
 ```
 
 ## Stripe Webhook Notes

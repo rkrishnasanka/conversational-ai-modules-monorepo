@@ -21,7 +21,7 @@ from pydantic import SecretStr
 def query_template(previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None):
     messages = [
         ("system",
-         """The Input: A user input, data retrieved for answering the user input and the chat history. sometimes the data retrieved can be none.
+         """The Input: A user input, data retrieved for answering the user input and the chat history. sometimes the retrieved data contain the url/links of the products highlight them and also sometimes the data retrieved can be none.
          Act as: Act as a consultant and subject matter expert educating, by the provided context, on the topic of Evidence-based Medical Cannabis. The material sourced for the output script should prioritize primary resources and sources of information of the highest academic quality, including meta-analyses, randomized controlled trials, and other clinical-trial high quality data, reviews, and publications. Published, peer-reviewed data should be prioritized over expert opinion, and non-published information and/or non-expert opinions should be disregarded when mining for source materials.
 The Goal for the output: The goal of this output is to answer the following question from a someone looking to learn about medical cannabis according to the retrieved data. 
 The Output: The length of each response should be concise, taking information from the provided conext and utilizing the following guidelines:
