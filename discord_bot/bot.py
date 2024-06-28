@@ -108,11 +108,11 @@ def create_bot() -> commands.Bot:
                     print("ERROR - Summarization failed")
                     queried_data = ""
 
-                user_input = user_input + queried_data
+                updated_user_input = 'user input: ' + user_input + 'data retrieved for the user input :' + queried_data
                 print(f"corrected chat history: {corrected_chat_history}")
                 
                 print(f"User Input: {user_input}")
-                reply = chatbot_instance.converse(user_input=user_input, previous_messages=corrected_chat_history)
+                reply = chatbot_instance.converse(user_input=updated_user_input, previous_messages=corrected_chat_history)
                 reply = f"<@{user_id}> " + reply[0]
                 
                 await message.channel.send(reply)
