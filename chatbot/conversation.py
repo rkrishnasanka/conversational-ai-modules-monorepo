@@ -3,6 +3,7 @@ from typing import Any, List, Optional, Tuple, Union, Literal
 
 import chromadb
 from chromadb.config import Settings
+from discord_bot.parameters import OUTPUT_COLUMNS
 from langchain.chains import LLMChain, RetrievalQA
 from langchain_community.chat_models import ChatOpenAI
 from langchain.embeddings.openai import OpenAIEmbeddings
@@ -18,7 +19,7 @@ from pydantic import SecretStr
 
 
 
-def query_template(previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None):
+def query_template(output_columns, previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None):
     messages = [
         ("system",
          """The Input: A user input, data retrieved for answering the user input and the chat history. sometimes the retrieved data contain the url/links of the products highlight them and also sometimes the data retrieved can be none.
@@ -36,7 +37,7 @@ The Output: The length of each response should be concise, taking information fr
 9. Conclusion/next steps - at the conclusion of the output, please include a reasonable conclusion for the listener, for example to consult with your primary care doctor and/or an expert cannabis clinician for ongoing care and clinical guidance.
 Important Note: Answers should only be sourced from the provided context or data and analysis mined from published, peer-reviewed scientific literature. Under no circumstances should creativity or fabricated information find its way into outputs at any time. Where low-quality data may have been sourced for information shared, it should be indicated by the following parenthetical phrase at the end of the relevant sentence “(sourced from potentially low quality sources)”
 
-Other Notes: in the output, avoid self-referencing to the speaker. Simply jump into education rather than referencing the speaker."""
+Other Notes: in the output, avoid self-referencing to the speaker. Simply jump into education rather than referencing the speaker. Avoid self-referencing like AI, Assistant, Chatbot, Bot, etc."""
          ),
     ]
 
@@ -45,7 +46,7 @@ Other Notes: in the output, avoid self-referencing to the speaker. Simply jump i
         for message in previous_messages:
             if isinstance(message, HumanMessage):
                 messages.append(
-                    ("human", message.content)
+                    ("human", message.content+ "I specifically only want to know about the columns: " + " ".join(output_columns))
                 )
             elif isinstance(message, AIMessage):
                 messages.append(
@@ -130,7 +131,7 @@ class Chatbot:
             previous_messages = []
         previous_messages.append(HumanMessage(content=user_input))
 
-        prompt = query_template(previous_messages=previous_messages)
+        prompt = query_template(output_columns=OUTPUT_COLUMNS, previous_messages=previous_messages)
         result = self.qachain({"query": prompt.format(user_question=user_input)})
 
         refernces_list = []

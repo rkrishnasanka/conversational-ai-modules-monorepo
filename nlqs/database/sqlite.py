@@ -1,7 +1,7 @@
 import re
 import sqlite3
 import logging
-from typing import Tuple
+from typing import List, Tuple
 from discord_bot.parameters import LOGGER_FILE, SQLITE_DB_FILE
 from nlqs.database.driver import AbstractDriver
 
@@ -43,14 +43,14 @@ class SQLiteDriver(AbstractDriver):
     def validate_query(self, query, db_file):
         pass
 
-def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tuple:
+def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tuple[List[str], List[str], List[str]]:
     """ Retrieves descriptions and types from the SQLite database.
 
     Args:
         db_file (SQLite database, optional): SQLite database to store all the tables. Defaults to SQLITE_DB_FILE.
 
     Returns:
-        tuple: Return descriptions, numerical_columns, categorial_columns
+        Tuple[List[str], List[str], List[str]]: Return descriptions, numerical_columns, categorial_columns
     """
     conn = sqlite3.connect(db_file)
     c = conn.cursor()
