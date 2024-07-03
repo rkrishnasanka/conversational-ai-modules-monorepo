@@ -3,10 +3,49 @@ import pandas as pd
 from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
-from discord_bot.parameters import OPENAI_API_KEY, SQLITE_DB_FILE
+from pathlib import Path
+from typing import Optional, List
+from discord_bot.parameters import OPENAI_API_KEY, SQL_TABLE_NAME, SQLITE_DB_FILE
 
-# OPENAI_API_KEY = "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"
-# SQLITE_DB_FILE = "D://m1n9//LUNA_chatbot//backend//aegion.db"
+# Fetch data from SQLite
+def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFrame]:
+    """Fetch data from a SQLite database table.
+
+    Args:
+        db_file (Path): Path to the SQLite database file.
+        table_name (str): Name of the table to fetch data from.
+
+    Returns:
+        Optional[pd.DataFrame]: A DataFrame containing the data from the table, or None if an error occurred.
+    """
+    try:
+        conn = sqlite3.connect(db_file)
+        query = f"SELECT * FROM {table_name}"
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Error fetching data: {e}")
+        return None  # Return an empty DataFrame on error
+     
+    return df
+
+def generate_sample_data(dataframe: pd.DataFrame) -> List[str]:
+    """Generate sample data for each column in the DataFrame.
+
+    Args:
+        dataframe (pd.DataFrame): The DataFrame containing the data.
+
+    Returns:
+        List[str]: A list of strings containing the column name, sample data, and data type.
+    """
+    sample_data_list = []
+    for column in dataframe.columns:
+        col_data = dataframe[column]
+        col_type = col_data.dtype
+        sample_data = col_data.dropna().sample(min(5, len(col_data))).tolist()
+        sample_data_str = ', '.join(map(str, sample_data))
+        sample_data_list.append(f"{column}: {sample_data_str}, {col_type}")
+    return sample_data_list
 
 def get_column_descriptions(dataframe, input_text) -> dict:
     """Get column descriptions from OpenAI API."""
@@ -108,8 +147,14 @@ def store_descriptions_in_db(descriptions, numerical_columns, categorical_column
     conn.commit()
     conn.close()
 
-data_path = 'D://m1n9//LUNA_chatbot//backend//product_descriptions.csv'
-df = pd.read_csv(data_path, encoding='ISO-8859-1')
+df = fetch_data_from_sqlite(Path(SQLITE_DB_FILE),SQL_TABLE_NAME)
+
+if df is None:
+    print("Error fetching data from SQLite.")
+    raise Exception("Error fetching data from SQLite.")
+
+# Generate sample data for each column
+sample_data_list = generate_sample_data(df)
 
 # Get column descriptions
 column_descriptions = get_column_descriptions(df, input_text="Please provide a detailed description of each column in the given dataset.")
