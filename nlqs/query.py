@@ -3,7 +3,8 @@ import json
 from xml.dom.minidom import Document
 import logging
 from dataclasses import dataclass
-from discord_bot.parameters import OPENAI_API_KEY, PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE, SQL_TABLE_NAME, LOGGER_FILE
+import chromadb
+from discord_bot.parameters import CHROMA_COLLECTION_NAME, OPENAI_API_KEY, PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE, SQL_TABLE_NAME, LOGGER_FILE
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
 from langchain.chains import LLMChain
@@ -11,9 +12,8 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders.csv_loader import CSVLoader
+from nlqs.database.sqlite import fetch_data_from_sqlite
 from pydantic.v1 import SecretStr
-from langchain.schema import Document
-from discord_bot.parameters import OPENAI_API_KEY
 
 # Create a logger object
 logger = logging.getLogger(__name__)
@@ -47,19 +47,48 @@ class SummarizedInput:
 #     def __init__(self) -> None:
 #         self.column_descriptions, self.numerical_columns, self.categorical_columns = retrieve_descriptions_and_types_from_db()
 
-def get_chroma_instance() -> Chroma:
-    """Generates a Chroma vector store from the product descriptions CSV file.
+# def get_chroma_instance() -> Chroma:
+#     """Generates a Chroma vector store from the product descriptions CSV file.
+
+#     Returns:
+#        Chroma vector store : embeddings for the CSV file.
+#     """
+#     # Load data from CSV file using CSVLoader.
+#     loader = CSVLoader(file_path=PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
+#     # Contains the loaded data.
+#     data = loader.load()
+#     # Creates a Chroma (or) ChromaDB vector store using the loaded data and OpenAI embeddings.
+#     data_vectors = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
+#     return data_vectors
+
+def get_chroma_collections() -> Chroma:
+    """_summary_
 
     Returns:
-       Chroma vector store : embeddings for the CSV file.
+        Chroma: _description_
     """
-    # Load data from CSV file using CSVLoader.
-    loader = CSVLoader(file_path=PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
-    # Contains the loaded data.
-    data = loader.load()
-    # Creates a Chroma (or) ChromaDB vector store using the loaded data and OpenAI embeddings.
-    data_vectors = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
-    return data_vectors
+    chroma_client: chromadb.ClientAPI = chromadb.PersistentClient()
+    collection_name = CHROMA_COLLECTION_NAME
+    collections = [col.name for col in chroma_client.list_collections()]
+    print(collections)
+
+    if collection_name in collections:
+            print(f"Collection '{collection_name}' already exists, getting existing collection...")
+            chroma_collection = chroma_client.get_collection(collection_name)
+    else:
+            print("Creating new collection...")
+            collection = chroma_client.create_collection(collection_name)
+
+            data = fetch_data_from_sqlite(SQLITE_DB_FILE, SQL_TABLE_NAME)
+
+            data['combined_text'] = data[['Product', 'Category', 'PackageID', 'MedicalBenefitsReported', 'Description']].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
+            texts = data['combined_text'].tolist()
+            data['meta_data'] = data[['Category','CustomerRating','RepeatPurchaseFrequency','Location', 'Room', 'Batch', 'CBD','THC','CBDA','CBG','CBN','THCA', 'URL']].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
+            metadata = data['meta_data'].tolist()
+
+            for text,pro,meta in zip(texts,data['Product'],metadata):
+                chroma_collection = collection.add(documents=text, ids=pro, metadatas={"product details: 'Category','CustomerRating','PurchaseFrequency','Location', 'Room', 'Batch', 'CBD','THC','CBDA','CBG','CBN','THCA', 'URL' ": meta})
+    return chroma_collection
 
 # Initializes the ChatOpenAI LLM model
 llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY, max_tokens=1000)
@@ -182,7 +211,7 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
     return summarized_input
 
 # Function to perform a similarity search
-def similarity_search(data_vectors: Chroma, user_input:str) -> str:
+def similarity_search(collection: Chroma, user_input:str) -> str:
     """Performs a similarity search on the database and returns the first similar result.
 
     Args:
@@ -192,11 +221,19 @@ def similarity_search(data_vectors: Chroma, user_input:str) -> str:
         str: the first similar result.
 
     """
-    result = data_vectors.similarity_search(user_input)
+    result = collection.query(query_texts=user_input, n_results=1, include=['documents', 'metadatas'])
+    print('----------------------------------------------------------')
+    print(type(result))
+    print('----------------------------------------------------------')
     if result:
-        result = result[0].page_content
-        logger.info(f"Result: {result}")
-        return result
+        result_str = str(result)
+        result_str = result_str.replace("{", "")
+        result_str = result_str.replace("}", '"')
+        print('----------------------')
+        print(type(result_str))
+        print('----------------------')
+        logger.info(f"Result: {result_str}")
+        return result_str
     else:
         logger.info("No similar result found.")
         return ""

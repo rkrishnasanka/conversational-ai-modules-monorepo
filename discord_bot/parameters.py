@@ -15,3 +15,5 @@ LOGGER_FILE = "chatbot.log"
 # OUTPUT_COLUMNS = ["Description", "URL", "CustomerRating", "Product"]
 OUTPUT_COLUMNS = ['CustomerRating']
 # OUTPUT_COLUMNS = []
+
+CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "aegion")

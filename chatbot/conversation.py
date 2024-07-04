@@ -45,9 +45,14 @@ Other Notes: in the output, avoid self-referencing to the speaker. Simply jump i
     if previous_messages is not None:
         for message in previous_messages:
             if isinstance(message, HumanMessage):
-                messages.append(
-                    ("human", message.content+ "I specifically only want to know about the columns: " + " ".join(output_columns))
-                )
+                if not output_columns:
+                    messages.append(
+                        ("human", message.content)
+                    )
+                else:
+                    messages.append(
+                        ("human", message.content+ "I specifically only want to know about the columns: " + " ".join(output_columns))
+                    )
             elif isinstance(message, AIMessage):
                 messages.append(
                     ("ai", message.content)
