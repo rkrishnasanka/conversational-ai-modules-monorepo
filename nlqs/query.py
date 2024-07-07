@@ -4,7 +4,7 @@ from xml.dom.minidom import Document
 import logging
 from dataclasses import dataclass
 import chromadb
-from discord_bot.parameters import CHROMA_COLLECTION_NAME, OPENAI_API_KEY, PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE, SQL_TABLE_NAME, LOGGER_FILE
+from discord_bot.parameters import CHROMA_COLLECTION_NAME, OPENAI_API_KEY, SQLITE_DB_FILE, SQL_TABLE_NAME, LOGGER_FILE
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
 from langchain.chains import LLMChain
@@ -47,25 +47,11 @@ class SummarizedInput:
 #     def __init__(self) -> None:
 #         self.column_descriptions, self.numerical_columns, self.categorical_columns = retrieve_descriptions_and_types_from_db()
 
-# def get_chroma_instance() -> Chroma:
-#     """Generates a Chroma vector store from the product descriptions CSV file.
-
-#     Returns:
-#        Chroma vector store : embeddings for the CSV file.
-#     """
-#     # Load data from CSV file using CSVLoader.
-#     loader = CSVLoader(file_path=PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
-#     # Contains the loaded data.
-#     data = loader.load()
-#     # Creates a Chroma (or) ChromaDB vector store using the loaded data and OpenAI embeddings.
-#     data_vectors = Chroma.from_documents(data, OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY)))
-#     return data_vectors
-
 def get_chroma_collections() -> Chroma:
-    """_summary_
+    """Gets the chroma collection.
 
     Returns:
-        Chroma: _description_
+        Chroma: Chroma collection.
     """
     chroma_client: chromadb.ClientAPI = chromadb.PersistentClient()
     collection_name = CHROMA_COLLECTION_NAME
@@ -88,6 +74,8 @@ def get_chroma_collections() -> Chroma:
 
             for text,pro,meta in zip(texts,data['Product'],metadata):
                 chroma_collection = collection.add(documents=text, ids=pro, metadatas={"product details: 'Category','CustomerRating','PurchaseFrequency','Location', 'Room', 'Batch', 'CBD','THC','CBDA','CBG','CBN','THCA', 'URL' ": meta})
+    
+            chroma_collection = chroma_client.get_collection(collection_name)
     return chroma_collection
 
 # Initializes the ChatOpenAI LLM model
@@ -147,12 +135,16 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
     You will receive a user input and the chat history. Your task is to:
     1. Analyze the user input and identify key details based on our available data and chat history.
     2. Summarize the input, classifying the data into qualitative and quantitative categories.
-    3. Identify relevant columns from which we can provide an answer. Pay close attention to the user's intent and specific mentions of data columns:
-       - Are they seeking information about products, medications, treatments, or other relevant categories?
-       - If the user is seeking information about a product, also provide the URL of the product if available.
-       - Look for explicit mentions of column names, synonyms, or phrases that indicate the type of information requested. If the user specifies certain attributes or metrics, consider these as user-requested columns.
+    3. Identify Relevant Columns:
+        - Determine which columns from the data are needed to provide an answer.
+        - Pay close attention to the user's intent and specific mentions of data columns:
+        - Are they seeking information about products, medications, treatments, or other relevant categories?
+        - If the user is seeking information about a product, provide the URL of the product if available.
+        - Look for explicit mentions of column names, synonyms, or phrases indicating the type of information requested. 
+        - If the user specifies certain attributes or metrics, consider these as user-requested columns.
     4. Classify the user's intent. Possible intents include: phatic_communication, sql_injection, profanity, and other.
     5. Output the result in a JSON format.
+    6. Do not output any other information except the JSON. Do not add [OUT], [/OUT] to the output.(!important)
     
     The output JSON should have the following structure:
 
@@ -222,16 +214,10 @@ def similarity_search(collection: Chroma, user_input:str) -> str:
 
     """
     result = collection.query(query_texts=user_input, n_results=1, include=['documents', 'metadatas'])
-    print('----------------------------------------------------------')
-    print(type(result))
-    print('----------------------------------------------------------')
     if result:
         result_str = str(result)
         result_str = result_str.replace("{", "")
         result_str = result_str.replace("}", '"')
-        print('----------------------')
-        print(type(result_str))
-        print('----------------------')
         logger.info(f"Result: {result_str}")
         return result_str
     else:

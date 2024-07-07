@@ -22,6 +22,8 @@ try:
     # Write the DataFrame to a SQLite table
     df.to_sql(SQL_TABLE_NAME, conn, if_exists='replace', index=False)
 
+    print(f"Data written to {SQLITE_DB_FILE}")
+
     # Commit the changes
     conn.commit()
 
