@@ -21,6 +21,6 @@ numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns.tolis
 categorical_columns = df.select_dtypes(include=['object']).columns.tolist()
 
 # Store descriptions and column types in the database
-store_descriptions_in_db(column_descriptions, numerical_columns, categorical_columns, SQLITE_DB_FILE)
+store_descriptions_in_db(column_descriptions, numerical_columns, categorical_columns, Path(SQLITE_DB_FILE))
 
 print("Column descriptions and column types stored in the database.")

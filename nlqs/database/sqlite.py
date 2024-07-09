@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 import sqlite3
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from discord_bot.parameters import LOGGER_FILE, SQLITE_DB_FILE
 from nlqs.database.driver import AbstractDriver
 import pandas as pd
@@ -66,7 +66,7 @@ def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFr
      
     return df
 
-def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tuple[List[str], List[str], List[str]]:
+def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tuple[Dict[str, str], List[str], List[str]]:
     """ Retrieves descriptions and types from the SQLite database.
 
     Args:

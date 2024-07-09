@@ -22,7 +22,7 @@ texts = text_splitter.split_documents(documents)
 # Supplying a persist_directory will store the embeddings on disk
 PERSIST_DIRECTORY = "../../content/db"
 
-embedding = OpenAIEmbeddings(openai_api_key=OPEN_API_KEY)
+embedding = OpenAIEmbeddings(api_key=OPEN_API_KEY)
 vectordb = Chroma.from_documents(
     documents=texts, embedding=embedding, persist_directory=PERSIST_DIRECTORY
 )

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Dict, Tuple
 import json
 from xml.dom.minidom import Document
@@ -47,7 +48,7 @@ class SummarizedInput:
 #     def __init__(self) -> None:
 #         self.column_descriptions, self.numerical_columns, self.categorical_columns = retrieve_descriptions_and_types_from_db()
 
-def get_chroma_collections() -> Chroma:
+def get_chroma_collections() -> chromadb.Collection:
     """Gets the chroma collection.
 
     Returns:
@@ -65,7 +66,8 @@ def get_chroma_collections() -> Chroma:
             print("Creating new collection...")
             collection = chroma_client.create_collection(collection_name)
 
-            data = fetch_data_from_sqlite(SQLITE_DB_FILE, SQL_TABLE_NAME)
+            data = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
+            
 
             data['combined_text'] = data[['Product', 'Category', 'PackageID', 'MedicalBenefitsReported', 'Description']].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
             texts = data['combined_text'].tolist()
@@ -203,7 +205,7 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
     return summarized_input
 
 # Function to perform a similarity search
-def similarity_search(collection: Chroma, user_input:str) -> str:
+def similarity_search(collection: chromadb.Collection, user_input:str) -> str:
     """Performs a similarity search on the database and returns the first similar result.
 
     Args:
