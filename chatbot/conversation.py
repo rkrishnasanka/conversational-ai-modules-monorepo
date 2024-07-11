@@ -1,19 +1,24 @@
 from re import template
-from typing import Any, List, Optional, Tuple, Union, Literal
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 import chromadb
 from chromadb.config import Settings
-from discord_bot.parameters import OUTPUT_COLUMNS
 from langchain.chains import LLMChain, RetrievalQA
-from langchain_community.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.llms import OpenAI, OpenAIChat
+from langchain_community.llms import OpenAIChat
+from langchain_community.vectorstores import Chroma
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 # from langchain.prompts import ChatPromptTemplate, PromptTemplate
-from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
-from langchain.prompts.chat import BaseMessagePromptTemplate, HumanMessagePromptTemplate
-from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain.vectorstores import Chroma
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    PromptTemplate,
+)
+from langchain_core.prompts.chat import BaseMessagePromptTemplate
+from langchain_openai import ChatOpenAI, OpenAI, OpenAIEmbeddings
+from pydantic import SecretStr
+from pydantic.v1 import SecretStr
+
 from chatbot.chat_reference import ChatReference
 from chatbot.parameters import (
     OPENAI_API_KEY,
@@ -23,7 +28,7 @@ from chatbot.parameters import (
     VECTORDB_PORT,
     VECTORDB_USERNAME,
 )
-from pydantic import SecretStr
+from discord_bot.parameters import OUTPUT_COLUMNS
 
 
 def query_template(output_columns, previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None):
@@ -107,7 +112,7 @@ class Chatbot:
                 chroma_client_auth_credentials=f"{VECTORDB_USERNAME}:{VECTORDB_PASSWORD}",
             ),
         )
-        openai_embedding_function = OpenAIEmbeddings(api_key=OPENAI_API_KEY)
+        openai_embedding_function = OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY))
         self.vectordb = Chroma(
             collection_name="ced-library",
             embedding_function=openai_embedding_function,
@@ -117,7 +122,7 @@ class Chatbot:
     def initialize_qachain(self) -> None:
         """Initializes the QA Chain"""
 
-        llm = ChatOpenAI(api_key=OPENAI_API_KEY, temperature=0.9, model="gpt-4")
+        llm = ChatOpenAI(api_key=SecretStr(OPENAI_API_KEY), temperature=0.9, model="gpt-4")
 
         self.qachain = RetrievalQA.from_chain_type(
             llm=llm,

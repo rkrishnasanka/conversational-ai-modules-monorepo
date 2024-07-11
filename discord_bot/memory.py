@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import List, Tuple
 
 chat_history: List[Tuple[str, str]] = []  # Stores the tuple of  (user_id, message)
 active_users: List[str] = []  # Stores the user_id of active users

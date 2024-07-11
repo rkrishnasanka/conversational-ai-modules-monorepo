@@ -5,6 +5,7 @@ And this could be greatful while testing the bot.
 """
 
 import gradio as gr
+
 from nlqs.workflow import main_workflow
 
 # Gradio interface

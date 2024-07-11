@@ -1,10 +1,13 @@
 import sqlite3
+from pathlib import Path
+from typing import List, Optional
+
 import pandas as pd
-from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
-from pathlib import Path
-from typing import Optional, List
+from langchain_openai import ChatOpenAI
+from pydantic.v1 import SecretStr
+
 from discord_bot.parameters import OPENAI_API_KEY, SQL_TABLE_NAME, SQLITE_DB_FILE
 
 
@@ -74,7 +77,7 @@ def get_column_descriptions(dataframe, input_text) -> dict:
 
         llm = ChatOpenAI(
             model="gpt-4",
-            api_key=OPENAI_API_KEY,
+            api_key=SecretStr(OPENAI_API_KEY),
             temperature=0.0,
             verbose=True,
         )

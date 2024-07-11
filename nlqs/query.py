@@ -1,20 +1,27 @@
-from pathlib import Path
-from typing import List, Dict, Tuple
 import json
-from xml.dom.minidom import Document
 import logging
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Tuple
+from xml.dom.minidom import Document
+
 import chromadb
-from discord_bot.parameters import CHROMA_COLLECTION_NAME, OPENAI_API_KEY, SQLITE_DB_FILE, SQL_TABLE_NAME, LOGGER_FILE
-from langchain.memory import ConversationBufferMemory
-from langchain_core.prompts import PromptTemplate
 from langchain.chains import LLMChain
-from langchain_community.chat_models import ChatOpenAI
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain.memory import ConversationBufferMemory
 from langchain_community.document_loaders.csv_loader import CSVLoader
-from nlqs.database.sqlite import fetch_data_from_sqlite
+from langchain_community.vectorstores import Chroma
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
+
+from discord_bot.parameters import (
+    CHROMA_COLLECTION_NAME,
+    LOGGER_FILE,
+    OPENAI_API_KEY,
+    SQL_TABLE_NAME,
+    SQLITE_DB_FILE,
+)
+from nlqs.database.sqlite import fetch_data_from_sqlite
 
 # Create a logger object
 logger = logging.getLogger(__name__)
@@ -109,7 +116,7 @@ def get_chroma_collections() -> chromadb.Collection:
 
 
 # Initializes the ChatOpenAI LLM model
-llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY, max_tokens=1000)
+llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=SecretStr(OPENAI_API_KEY), max_tokens=1000)
 
 # Default system prompt for the LLM.
 DEFAULT_SYSTEM_PROMPT = (

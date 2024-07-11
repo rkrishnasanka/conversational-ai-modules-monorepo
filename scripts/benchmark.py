@@ -5,8 +5,13 @@
 import csv
 import os
 import re
-from nlqs.database.sqlite import execute_query, retrieve_descriptions_and_types_from_db, validate_query
-from nlqs.query import get_chroma_instance, summarize, generate_query, similarity_search
+
+from nlqs.database.sqlite import (
+    execute_query,
+    retrieve_descriptions_and_types_from_db,
+    validate_query,
+)
+from nlqs.query import generate_query, get_chroma_instance, similarity_search, summarize
 
 # CSV file paths
 TEST_CASES_FILE = "test_cases.csv"

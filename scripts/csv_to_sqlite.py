@@ -4,8 +4,14 @@ the API to query the SQLite database.
 """
 
 import sqlite3
+
 import pandas as pd
-from discord_bot.parameters import PRODUCT_DESCRIPTIONS_CSV, SQLITE_DB_FILE, SQL_TABLE_NAME
+
+from discord_bot.parameters import (
+    PRODUCT_DESCRIPTIONS_CSV,
+    SQL_TABLE_NAME,
+    SQLITE_DB_FILE,
+)
 
 try:
     # Read the CSV file into a DataFrame

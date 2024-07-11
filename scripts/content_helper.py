@@ -3,11 +3,10 @@ This script loads a PDF document, splits it into chunks, embeds the chunks, and 
 """
 
 from langchain.chains import VectorDBQA
-from langchain.document_loaders import PyPDFLoader, TextLoader
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import OpenAI
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.vectorstores import Chroma
+from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 OPEN_API_KEY = "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"
 
