@@ -6,7 +6,7 @@ authors = ["Radhakrishna Sanka <rkrishnasanka@gmail.com>"]
 readme = "README.md"
 
 packages = [
-    { include = "swagger_server" },
+    { include = "nlqs"},
     { include = "chatbot" },
     { include = "discord_bot" }
 ]
@@ -46,6 +46,7 @@ black = "^23.9.1"
 mypy = "^1.5.1"
 isort = "^5.12.0"
 gradio = "^4.36.1"
+pandas-stubs = "^2.2.2.240603"
 
 [build-system]
 requires = ["poetry-core"]
