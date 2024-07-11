@@ -5,7 +5,7 @@ And this could be greatful while testing the bot.
 """
 
 import gradio as gr
-from backend.nlqs.workflow import main_workflow
+from nlqs.workflow import main_workflow
 
 # Gradio interface
 with gr.Blocks(title="Chatbot using OpenAI") as demo:

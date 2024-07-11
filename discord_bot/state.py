@@ -7,7 +7,8 @@ class BotState(Enum):
 
     Args:
         Enum (int): The state of the bot
-    """    
+    """
+
     IDLE = 1
     ENGAGED = 2
 
@@ -20,25 +21,27 @@ def empty_active_users(state_variable: BotState) -> BotState:
 
     Returns:
         BotState: The new state of the bot
-    """    
+    """
     if state_variable == BotState.ENGAGED:
-        if not active_users: # If active_users is empty
+        if not active_users:  # If active_users is empty
             return BotState.IDLE
-    
+
     return state_variable
+
 
 def new_user() -> BotState:
     """Sets state to Engaged when a new Conversation with a user starts
 
     Returns:
         BotState: The new state of the bot
-    """    
+    """
     return BotState.ENGAGED
+
 
 def user_exists() -> BotState:
     """Sets state to Engaged when a user already exists in the active_users list
 
     Returns:
         BotState: The new state of the bot
-    """    
+    """
     return BotState.ENGAGED

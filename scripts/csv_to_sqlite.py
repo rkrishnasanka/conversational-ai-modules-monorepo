@@ -14,13 +14,13 @@ try:
         df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV)
     except UnicodeDecodeError:
         # If UTF-8 fails, fall back to ISO-8859-1
-        df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV, encoding='ISO-8859-1')
-    
+        df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV, encoding="ISO-8859-1")
+
     # Connect to the SQLite database
     conn = sqlite3.connect(SQLITE_DB_FILE)
 
     # Write the DataFrame to a SQLite table
-    df.to_sql(SQL_TABLE_NAME, conn, if_exists='replace', index=False)
+    df.to_sql(SQL_TABLE_NAME, conn, if_exists="replace", index=False)
 
     print(f"Data written to {SQLITE_DB_FILE}")
 

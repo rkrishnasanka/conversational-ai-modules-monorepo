@@ -8,6 +8,7 @@ from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
 from discord_bot.parameters import OPENAI_API_KEY, SQLITE_DB_FILE, SQL_TABLE_NAME
 
+
 # Fetch data from SQLite
 def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFrame]:
     """Fetch data from a SQLite database table.
@@ -27,8 +28,9 @@ def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFr
     except sqlite3.Error as e:
         print(f"Error fetching data: {e}")
         return None  # Return an empty DataFrame on error
-     
+
     return df
+
 
 def generate_sample_data(dataframe: pd.DataFrame) -> List[str]:
     """Generate sample data for each column in the DataFrame.
@@ -44,9 +46,10 @@ def generate_sample_data(dataframe: pd.DataFrame) -> List[str]:
         col_data = dataframe[column]
         col_type = col_data.dtype
         sample_data = col_data.dropna().sample(min(5, len(col_data))).tolist()
-        sample_data_str = ', '.join(map(str, sample_data))
+        sample_data_str = ", ".join(map(str, sample_data))
         sample_data_list.append(f"{column}: {sample_data_str}, {col_type}")
     return sample_data_list
+
 
 def get_column_descriptions(sample_data: List[str], input_text: str) -> Dict:
     """Generate descriptions for each column in the dataset using OpenAI
@@ -57,7 +60,7 @@ def get_column_descriptions(sample_data: List[str], input_text: str) -> Dict:
 
     Returns:
         Dict: _description_
-    """    
+    """
     # Initialize an empty dictionary to store column descriptions
     descriptions = {}
 
@@ -69,7 +72,9 @@ def get_column_descriptions(sample_data: List[str], input_text: str) -> Dict:
         # Prepare the prompt
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", f"""
+                (
+                    "system",
+                    f"""
                 The following is a description of a dataset column:
                 Column Name: {column}
                 Data Type: {col_type}
@@ -87,8 +92,9 @@ def get_column_descriptions(sample_data: List[str], input_text: str) -> Dict:
                     "CustomerRating": "This column contains the customer rating of the product. It is a numerical field and can be used for exact matches or range comparisons.",
                     "PurchaseFrequency": "This column contains the frequency of product purchase. It is a text field and can be used for exact or partial matches.",
                     "description": "This column contains the description of the product. It is a text field and can be used for exact or partial matches."
-                """),
-                ("user", "{user_input}")
+                """,
+                ),
+                ("user", "{user_input}"),
             ]
         )
 
@@ -100,20 +106,23 @@ def get_column_descriptions(sample_data: List[str], input_text: str) -> Dict:
         )
 
         chain = LLMChain(prompt=prompt, llm=llm)
-        
+
         # Generate the description
         response = chain.run(input_text)
-        
+
         # Extract the description from the response
         description = response.strip()
-        
+
         # Add the description to the dictionary
         descriptions[column] = description
-        
+
     # Return the dictionary of column descriptions
     return descriptions
 
-def store_descriptions_in_db(descriptions: Dict[str, str], numerical_columns: List[str], categorical_columns: List[str], db_file: Path) -> None:
+
+def store_descriptions_in_db(
+    descriptions: Dict[str, str], numerical_columns: List[str], categorical_columns: List[str], db_file: Path
+) -> None:
     """Store column descriptions and types in the SQLite database.
 
     Args:
@@ -126,38 +135,51 @@ def store_descriptions_in_db(descriptions: Dict[str, str], numerical_columns: Li
     c = conn.cursor()
 
     # Create table for column descriptions
-    c.execute('''
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS column_descriptions (
             column_name TEXT PRIMARY KEY,
             description TEXT
         )
-    ''')
+    """
+    )
 
     for column, description in descriptions.items():
-        c.execute('''
+        c.execute(
+            """
             INSERT OR REPLACE INTO column_descriptions (column_name, description)
             VALUES (?, ?)
-        ''', (column, description))
+        """,
+            (column, description),
+        )
 
     # Create table for numerical and categorical columns
-    c.execute('''
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS column_types (
             column_name TEXT PRIMARY KEY,
             column_type TEXT
         )
-    ''')
+    """
+    )
 
     for column in numerical_columns:
-        c.execute('''
+        c.execute(
+            """
             INSERT OR REPLACE INTO column_types (column_name, column_type)
             VALUES (?, ?)
-        ''', (column, 'numerical'))
+        """,
+            (column, "numerical"),
+        )
 
     for column in categorical_columns:
-        c.execute('''
+        c.execute(
+            """
             INSERT OR REPLACE INTO column_types (column_name, column_type)
             VALUES (?, ?)
-        ''', (column, 'categorical'))
+        """,
+            (column, "categorical"),
+        )
 
     conn.commit()
     conn.close()

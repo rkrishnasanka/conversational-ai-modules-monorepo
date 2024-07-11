@@ -9,13 +9,22 @@ except Exception as e:
     print(e)
     from scripts import csv_to_sqlite
     from scripts.description_generator import store_descriptions_in_db
+
     column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()
 
 chroma_collections = get_chroma_collections()
 
-def main_workflow(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dict:Dict[str,str]=column_descriptions, numerical_columns_list:List[str]=numerical_columns, categorical_columns_list:List[str]=categorical_columns, collections=chroma_collections) -> Tuple[str,List[Tuple[str, str]]]:
-    """This function is where the whole interaction happens. 
-    It takes the user input and chat history as input and returns the response if the user's intent is either phatic_communication, profanity or sql_injection. 
+
+def main_workflow(
+    user_input: str,
+    chat_history: List[Tuple[str, str]],
+    column_descriptions_dict: Dict[str, str] = column_descriptions,
+    numerical_columns_list: List[str] = numerical_columns,
+    categorical_columns_list: List[str] = categorical_columns,
+    collections=chroma_collections,
+) -> Tuple[str, List[Tuple[str, str]]]:
+    """This function is where the whole interaction happens.
+    It takes the user input and chat history as input and returns the response if the user's intent is either phatic_communication, profanity or sql_injection.
     Else it returns the query result or search similarity result and the updated chat history.
 
     Args:
@@ -34,26 +43,37 @@ def main_workflow(user_input:str, chat_history:List[Tuple[str, str]], column_des
         response = ""
 
     user_input = re.sub(r"{|}", "", user_input)
-    summarized_input = summarize(user_input, chat_history, column_descriptions_dict, numerical_columns_list, categorical_columns_list)
+    summarized_input = summarize(
+        user_input, chat_history, column_descriptions_dict, numerical_columns_list, categorical_columns_list
+    )
 
     count = 0
     print(f"summarized_input: {summarized_input}")
     while not summarized_input.summary and count < 5:
-        summarized_input = summarize(user_input, chat_history, column_descriptions_dict, numerical_columns_list, categorical_columns_list)
+        summarized_input = summarize(
+            user_input, chat_history, column_descriptions_dict, numerical_columns_list, categorical_columns_list
+        )
         count += 1
         if count == 5:
             response = "Summarization failed. Please try again."
             break
 
     intent = summarized_input.user_intent
-    
+
     if intent == "sql_injection" or intent == "profanity":
         response = ""
-    
+
     else:
         if summarized_input.user_requested_columns:
-            genenerted_query = generate_query(user_input, summarized_input, chat_history, column_descriptions_dict, numerical_columns_list, categorical_columns_list)
-            if validate_query(genenerted_query):            
+            genenerted_query = generate_query(
+                user_input,
+                summarized_input,
+                chat_history,
+                column_descriptions_dict,
+                numerical_columns_list,
+                categorical_columns_list,
+            )
+            if validate_query(genenerted_query):
                 query_result = execute_query(genenerted_query)
                 if query_result == str([]):
                     query_result = similarity_search(collections, user_input)
@@ -63,5 +83,5 @@ def main_workflow(user_input:str, chat_history:List[Tuple[str, str]], column_des
         else:
             response = ""
 
-    chat_history.append((user_input,response))
+    chat_history.append((user_input, response))
     return response, chat_history

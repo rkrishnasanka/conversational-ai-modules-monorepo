@@ -1,5 +1,6 @@
 from nlqs.database.driver import AbstractDriver
 
+
 class PostgresDriver(AbstractDriver):
 
     def __init__(self, config):

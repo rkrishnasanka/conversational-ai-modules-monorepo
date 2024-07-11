@@ -34,19 +34,23 @@ file_handler.setFormatter(formatter)
 # Add the file handler to the logger
 logger.addHandler(file_handler)
 
+
 @dataclass
 class SummarizedInput:
-    """ Class to represent the summarized input. """
+    """Class to represent the summarized input."""
+
     summary: str
     quantitative_data: Dict[str, str]
     qualitative_data: Dict[str, str]
     user_requested_columns: List[str]
     user_intent: str
 
+
 # class Query:
 
 #     def __init__(self) -> None:
 #         self.column_descriptions, self.numerical_columns, self.categorical_columns = retrieve_descriptions_and_types_from_db()
+
 
 def get_chroma_collections() -> chromadb.Collection:
     """Gets the chroma collection.
@@ -60,34 +64,61 @@ def get_chroma_collections() -> chromadb.Collection:
     print(collections)
 
     if collection_name in collections:
-            print(f"Collection '{collection_name}' already exists, getting existing collection...")
-            chroma_collection = chroma_client.get_collection(collection_name)
+        print(f"Collection '{collection_name}' already exists, getting existing collection...")
+        chroma_collection = chroma_client.get_collection(collection_name)
     else:
-            print("Creating new collection...")
-            collection = chroma_client.create_collection(collection_name)
+        print("Creating new collection...")
+        collection = chroma_client.create_collection(collection_name)
 
-            data = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
-            
+        data = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
 
-            data['combined_text'] = data[['Product', 'Category', 'PackageID', 'MedicalBenefitsReported', 'Description']].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
-            texts = data['combined_text'].tolist()
-            data['meta_data'] = data[['Category','CustomerRating','RepeatPurchaseFrequency','Location', 'Room', 'Batch', 'CBD','THC','CBDA','CBG','CBN','THCA', 'URL']].apply(lambda x: ' '.join(x.dropna().astype(str)), axis=1)
-            metadata = data['meta_data'].tolist()
+        data["combined_text"] = data[
+            ["Product", "Category", "PackageID", "MedicalBenefitsReported", "Description"]
+        ].apply(lambda x: " ".join(x.dropna().astype(str)), axis=1)
+        texts = data["combined_text"].tolist()
+        data["meta_data"] = data[
+            [
+                "Category",
+                "CustomerRating",
+                "RepeatPurchaseFrequency",
+                "Location",
+                "Room",
+                "Batch",
+                "CBD",
+                "THC",
+                "CBDA",
+                "CBG",
+                "CBN",
+                "THCA",
+                "URL",
+            ]
+        ].apply(lambda x: " ".join(x.dropna().astype(str)), axis=1)
+        metadata = data["meta_data"].tolist()
 
-            for text,pro,meta in zip(texts,data['Product'],metadata):
-                chroma_collection = collection.add(documents=text, ids=pro, metadatas={"product details: 'Category','CustomerRating','PurchaseFrequency','Location', 'Room', 'Batch', 'CBD','THC','CBDA','CBG','CBN','THCA', 'URL' ": meta})
-    
-            chroma_collection = chroma_client.get_collection(collection_name)
+        for text, pro, meta in zip(texts, data["Product"], metadata):
+            chroma_collection = collection.add(
+                documents=text,
+                ids=pro,
+                metadatas={
+                    "product details: 'Category','CustomerRating','PurchaseFrequency','Location', 'Room', 'Batch', 'CBD','THC','CBDA','CBG','CBN','THCA', 'URL' ": meta
+                },
+            )
+
+        chroma_collection = chroma_client.get_collection(collection_name)
     return chroma_collection
+
 
 # Initializes the ChatOpenAI LLM model
 llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=OPENAI_API_KEY, max_tokens=1000)
 
 # Default system prompt for the LLM.
-DEFAULT_SYSTEM_PROMPT = "You are a professional medical assistant, adept at handling inquiries related to medical products."
+DEFAULT_SYSTEM_PROMPT = (
+    "You are a professional medical assistant, adept at handling inquiries related to medical products."
+)
+
 
 # Generates a prompt for the LLM based on the instruction and system prompt.
-def get_prompt(instruction:str , system_prompt:str=DEFAULT_SYSTEM_PROMPT) -> str:
+def get_prompt(instruction: str, system_prompt: str = DEFAULT_SYSTEM_PROMPT) -> str:
     """Generates the prompt for the LLM.
 
     Args:
@@ -101,8 +132,15 @@ def get_prompt(instruction:str , system_prompt:str=DEFAULT_SYSTEM_PROMPT) -> str
     SYSTEM_PROMPT = f"<<SYS>>\n{system_prompt}\n<</SYS>>\n\n"
     return f"[INST]{SYSTEM_PROMPT}{instruction}[/INST]"
 
+
 # Function to identify qualitative and quantitative data and user intent
-def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descriptions_dictionary:Dict[str,str], numerical_columns:List[str], categorical_columns:List[str]) -> SummarizedInput:
+def summarize(
+    user_input: str,
+    chat_history: List[Tuple[str, str]],
+    column_descriptions_dictionary: Dict[str, str],
+    numerical_columns: List[str],
+    categorical_columns: List[str],
+) -> SummarizedInput:
     """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
 
     Args:
@@ -114,26 +152,26 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
 
     Returns:
         dict: {
-            "summary": str, 
+            "summary": str,
             "quantitative_data": {
-                "column name": str, 
-                "column name": str, 
                 "column name": str,
-            }, 
+                "column name": str,
+                "column name": str,
+            },
             "qualitative_data": {
-                "column name": str, 
-                "column name": str, 
                 "column name": str,
-            }, 
+                "column name": str,
+                "column name": str,
+            },
             "user_requested_columns": list,
             "user_intent":str,
         }
     """
-    
+
     column_descriptions = list(column_descriptions_dictionary.items())
 
     # Summarize the user input
-    instruction =  f"""
+    instruction = f"""
     You will receive a user input and the chat history. Your task is to:
     1. Analyze the user input and identify key details based on our available data and chat history.
     2. Summarize the input, classifying the data into qualitative and quantitative categories.
@@ -181,7 +219,7 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
     memory = ConversationBufferMemory(memory_key="chat_history")
 
     llm_chain = LLMChain(llm=llm, prompt=prompt_template, verbose=True, memory=memory)
-    
+
     summarized_input_str = llm_chain.run({"chat_history": chat_history, "user_input": user_input})
     try:
         # Attempt to parse the summarized input as JSON
@@ -199,13 +237,14 @@ def summarize(user_input:str, chat_history:List[Tuple[str, str]], column_descrip
         quantitative_data=summarized_input_dict.get("quantitative_data", {}),
         qualitative_data=summarized_input_dict.get("qualitative_data", {}),
         user_requested_columns=summarized_input_dict.get("user_requested_columns", []),
-        user_intent=summarized_input_dict.get("user_intent", "")
+        user_intent=summarized_input_dict.get("user_intent", ""),
     )
 
     return summarized_input
 
+
 # Function to perform a similarity search
-def similarity_search(collection: chromadb.Collection, user_input:str) -> str:
+def similarity_search(collection: chromadb.Collection, user_input: str) -> str:
     """Performs a similarity search on the database and returns the first similar result.
 
     Args:
@@ -215,7 +254,7 @@ def similarity_search(collection: chromadb.Collection, user_input:str) -> str:
         str: the first similar result.
 
     """
-    result = collection.query(query_texts=user_input, n_results=1, include=['documents', 'metadatas'])
+    result = collection.query(query_texts=user_input, n_results=1, include=["documents", "metadatas"])
     if result:
         result_str = str(result)
         result_str = result_str.replace("{", "")
@@ -226,8 +265,16 @@ def similarity_search(collection: chromadb.Collection, user_input:str) -> str:
         logger.info("No similar result found.")
         return ""
 
+
 # Function to generate a response based on the user input
-def generate_query(user_input:str, summarized_input: SummarizedInput, chat_history:List[Tuple[str, str]], column_descriptions:Dict[str,str], numerical_columns:List[str], categorical_columns:List[str]) -> str:
+def generate_query(
+    user_input: str,
+    summarized_input: SummarizedInput,
+    chat_history: List[Tuple[str, str]],
+    column_descriptions: Dict[str, str],
+    numerical_columns: List[str],
+    categorical_columns: List[str],
+) -> str:
     """Generates an SQL query based on the user input and chat history.
 
     Args:
@@ -268,7 +315,9 @@ def generate_query(user_input:str, summarized_input: SummarizedInput, chat_histo
     Generate the SQLite query below:
     """
 
-    system_prompt = "You are an expert in SQL queries. Create robust queries based on the user requirements and database schema."
+    system_prompt = (
+        "You are an expert in SQL queries. Create robust queries based on the user requirements and database schema."
+    )
     prompt = get_prompt(instruction, system_prompt)
     prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "user_input"])
     memory = ConversationBufferMemory(memory_key="chat_history")

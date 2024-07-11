@@ -23,8 +23,6 @@ texts = text_splitter.split_documents(documents)
 PERSIST_DIRECTORY = "../../content/db"
 
 embedding = OpenAIEmbeddings(api_key=OPEN_API_KEY)
-vectordb = Chroma.from_documents(
-    documents=texts, embedding=embedding, persist_directory=PERSIST_DIRECTORY
-)
+vectordb = Chroma.from_documents(documents=texts, embedding=embedding, persist_directory=PERSIST_DIRECTORY)
 
 vectordb.persist()

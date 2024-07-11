@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional, List
 from discord_bot.parameters import OPENAI_API_KEY, SQL_TABLE_NAME, SQLITE_DB_FILE
 
+
 # Fetch data from SQLite
 def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFrame]:
     """Fetch data from a SQLite database table.
@@ -26,8 +27,9 @@ def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFr
     except sqlite3.Error as e:
         print(f"Error fetching data: {e}")
         return None  # Return an empty DataFrame on error
-     
+
     return df
+
 
 def get_column_descriptions(dataframe, input_text) -> dict:
     """Get column descriptions from OpenAI API."""
@@ -39,12 +41,14 @@ def get_column_descriptions(dataframe, input_text) -> dict:
         col_data = dataframe[column]
         col_type = col_data.dtype
         sample_data = dataframe[column].dropna().sample(min(5, len(dataframe[column]))).tolist()
-        sample_data_str = ', '.join(map(str, sample_data))
+        sample_data_str = ", ".join(map(str, sample_data))
 
         # Prepare the prompt
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", f"""
+                (
+                    "system",
+                    f"""
                 The following is a description of a dataset column:
                 Column Name: {column}
                 Data Type: {col_type}
@@ -62,8 +66,9 @@ def get_column_descriptions(dataframe, input_text) -> dict:
                     "CustomerRating": "This column contains the customer rating of the product. It is a numerical field and can be used for exact matches or range comparisons.",
                     "PurchaseFrequency": "This column contains the frequency of product purchase. It is a text field and can be used for exact or partial matches.",
                     "description": "This column contains the description of the product. It is a text field and can be used for exact or partial matches."
-                """),
-                ("user", "{user_input}")
+                """,
+                ),
+                ("user", "{user_input}"),
             ]
         )
 
@@ -75,75 +80,94 @@ def get_column_descriptions(dataframe, input_text) -> dict:
         )
 
         chain = LLMChain(prompt=prompt, llm=llm)
-        
+
         # Generate the description
         response = chain.run(input_text)
-        
+
         # Extract the description from the response
         description = response.strip()
-        
+
         # Add the description to the dictionary
         descriptions[column] = description
-        
+
     # Return the dictionary of column descriptions
     return descriptions
+
 
 def store_descriptions_in_db(descriptions, numerical_columns, categorical_columns, db_file=SQLITE_DB_FILE):
     conn = sqlite3.connect(db_file)
     c = conn.cursor()
 
     # Create table for column descriptions
-    c.execute('''
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS column_descriptions (
             column_name TEXT PRIMARY KEY,
             description TEXT
         )
-    ''')
+    """
+    )
 
     for column, description in descriptions.items():
-        c.execute('''
+        c.execute(
+            """
             INSERT OR REPLACE INTO column_descriptions (column_name, description)
             VALUES (?, ?)
-        ''', (column, description))
+        """,
+            (column, description),
+        )
 
     # Create table for numerical and categorical columns
-    c.execute('''
+    c.execute(
+        """
         CREATE TABLE IF NOT EXISTS column_types (
             column_name TEXT PRIMARY KEY,
             column_type TEXT
         )
-    ''')
+    """
+    )
 
     for column in numerical_columns:
-        c.execute('''
+        c.execute(
+            """
             INSERT OR REPLACE INTO column_types (column_name, column_type)
             VALUES (?, ?)
-        ''', (column, 'numerical'))
+        """,
+            (column, "numerical"),
+        )
 
     for column in categorical_columns:
-        c.execute('''
+        c.execute(
+            """
             INSERT OR REPLACE INTO column_types (column_name, column_type)
             VALUES (?, ?)
-        ''', (column, 'categorical'))
+        """,
+            (column, "categorical"),
+        )
 
     conn.commit()
     conn.close()
 
-df = fetch_data_from_sqlite(Path(SQLITE_DB_FILE),SQL_TABLE_NAME)
+
+df = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
 
 if df is None:
     print("Error fetching data from SQLite.")
     raise Exception("Error fetching data from SQLite.")
 
 # Get column descriptions
-column_descriptions = get_column_descriptions(dataframe=df, input_text="Please provide a detailed description of each column in the given dataset.")
+column_descriptions = get_column_descriptions(
+    dataframe=df, input_text="Please provide a detailed description of each column in the given dataset."
+)
 
 # Identify numerical and categorical columns
-numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-categorical_columns = df.select_dtypes(include=['object']).columns.tolist()
+numerical_columns = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
 # Store descriptions and column types in the database
-store_descriptions_in_db(descriptions=column_descriptions, numerical_columns=numerical_columns, categorical_columns=categorical_columns)
+store_descriptions_in_db(
+    descriptions=column_descriptions, numerical_columns=numerical_columns, categorical_columns=categorical_columns
+)
 
 print(column_descriptions)
 print("Column descriptions and column types stored in the database.")

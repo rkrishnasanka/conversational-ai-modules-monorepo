@@ -25,6 +25,7 @@ file_handler.setFormatter(formatter)
 # Add the file handler to the logger
 logger.addHandler(file_handler)
 
+
 class SQLiteDriver(AbstractDriver):
 
     def __init__(self, config):
@@ -38,12 +39,13 @@ class SQLiteDriver(AbstractDriver):
 
     def execute_query(self, query):
         pass
-    
+
     def retrieve_descriptions_and_types_from_db(self, db_file):
         pass
 
     def validate_query(self, query, db_file):
         pass
+
 
 def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFrame]:
     """Fetch data from a SQLite database table.
@@ -63,11 +65,14 @@ def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFr
     except sqlite3.Error as e:
         print(f"Error fetching data: {e}")
         return None  # Return an empty DataFrame on error
-     
+
     return df
 
-def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tuple[Dict[str, str], List[str], List[str]]:
-    """ Retrieves descriptions and types from the SQLite database.
+
+def retrieve_descriptions_and_types_from_db(
+    db_file: str = SQLITE_DB_FILE,
+) -> Tuple[Dict[str, str], List[str], List[str]]:
+    """Retrieves descriptions and types from the SQLite database.
 
     Args:
         db_file (SQLite database, optional): SQLite database to store all the tables. Defaults to SQLITE_DB_FILE.
@@ -79,21 +84,22 @@ def retrieve_descriptions_and_types_from_db(db_file: str= SQLITE_DB_FILE) -> Tup
     c = conn.cursor()
 
     # Retrieve descriptions
-    c.execute('SELECT column_name, description FROM column_descriptions')
+    c.execute("SELECT column_name, description FROM column_descriptions")
     description_rows = c.fetchall()
     descriptions = {row[0]: row[1] for row in description_rows}
 
     # Retrieve column types
-    c.execute('SELECT column_name, column_type FROM column_types')
+    c.execute("SELECT column_name, column_type FROM column_types")
     type_rows = c.fetchall()
-    numerical_columns = [row[0] for row in type_rows if row[1] == 'numerical']
-    categorical_columns = [row[0] for row in type_rows if row[1] == 'categorical']
+    numerical_columns = [row[0] for row in type_rows if row[1] == "numerical"]
+    categorical_columns = [row[0] for row in type_rows if row[1] == "categorical"]
 
     conn.close()
     return descriptions, numerical_columns, categorical_columns
 
+
 def validate_query(query: str, db_file: str = SQLITE_DB_FILE) -> bool:
-    """ Validates the generated SQL query against the database schema and returns True if valid, False otherwise.
+    """Validates the generated SQL query against the database schema and returns True if valid, False otherwise.
 
     Args:
         query (str): sql query to be validated.
@@ -136,15 +142,16 @@ def validate_query(query: str, db_file: str = SQLITE_DB_FILE) -> bool:
     table_columns = [column[1] for column in cursor.fetchall()]
     for column in columns:
         column = column.strip()
-        if column not in table_columns and column != '*':
+        if column not in table_columns and column != "*":
             print(f"Column '{column}' does not exist in table '{table_name}'.")
             return False
-        
+
     # If all checks pass, the query is considered valid
     return True
 
-def execute_query(query:str) -> str:
-    """ Executes the SQL query and returns the result.
+
+def execute_query(query: str) -> str:
+    """Executes the SQL query and returns the result.
 
     Args:
         query (str): the SQL query.
@@ -153,7 +160,7 @@ def execute_query(query:str) -> str:
         str: the result of the query.
     """
     try:
-        #SQLite connection
+        # SQLite connection
         conn = sqlite3.connect(SQLITE_DB_FILE)
         cursor = conn.cursor()
         cursor.execute(query)
