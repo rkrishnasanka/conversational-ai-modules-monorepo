@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "backend"
+name = "conversational_ai_library"
 version = "0.1.0"
 description = ""
 authors = ["Radhakrishna Sanka <rkrishnasanka@gmail.com>"]
