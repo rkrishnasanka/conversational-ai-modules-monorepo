@@ -16,7 +16,6 @@ from langchain_core.prompts import (
 )
 from langchain_core.prompts.chat import BaseMessagePromptTemplate
 from langchain_openai import ChatOpenAI, OpenAI, OpenAIEmbeddings
-from pydantic import SecretStr
 from pydantic.v1 import SecretStr
 
 from chatbot.chat_reference import ChatReference
