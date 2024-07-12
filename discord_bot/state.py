@@ -1,4 +1,5 @@
 from enum import Enum
+
 from discord_bot.memory import active_users
 
 

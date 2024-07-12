@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from discord_bot.parameters import SQL_TABLE_NAME, SQLITE_DB_FILE
 from nlqs.column_introspection import (
     fetch_data_from_sqlite,
@@ -6,7 +7,6 @@ from nlqs.column_introspection import (
     get_column_descriptions,
     store_descriptions_in_db,
 )
-
 
 df = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
 

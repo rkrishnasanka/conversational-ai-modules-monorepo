@@ -1,7 +1,17 @@
-from typing import Dict, List, Tuple
 import re
-from nlqs.database.sqlite import retrieve_descriptions_and_types_from_db, execute_query, validate_query
-from nlqs.query import get_chroma_collections, summarize, generate_query, similarity_search
+from typing import Dict, List, Tuple
+
+from nlqs.database.sqlite import (
+    execute_query,
+    retrieve_descriptions_and_types_from_db,
+    validate_query,
+)
+from nlqs.query import (
+    generate_query,
+    get_chroma_collections,
+    similarity_search,
+    summarize,
+)
 
 try:
     column_descriptions, numerical_columns, categorical_columns = retrieve_descriptions_and_types_from_db()

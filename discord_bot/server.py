@@ -1,6 +1,7 @@
+from dotenv import load_dotenv
+
 from discord_bot.bot import create_bot
 from discord_bot.parameters import DISCORD_TOKEN
-from dotenv import load_dotenv
 
 
 def run_server():

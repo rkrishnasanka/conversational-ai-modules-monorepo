@@ -1,22 +1,24 @@
-import discord
 import random
-from discord.ext import commands
-import discord_bot.memory as memory
 import re
 from typing import Any, List, Optional, Tuple, Union
-from langchain.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
+
+import discord
+from discord.ext import commands
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from openai import chat
+
+import discord_bot.memory as memory
 from chatbot.conversation import Chatbot
-from discord_bot.state import BotState, empty_active_users, user_exists, new_user
 from discord_bot.memory import (
-    chat_history,
     active_users,
-    get_user_chat_history,
     add_to_chat_history,
+    chat_history,
+    get_user_chat_history,
     set_user_active,
     set_user_inactive,
 )
+from discord_bot.state import BotState, empty_active_users, new_user, user_exists
 from nlqs.workflow import main_workflow
-from openai import chat
 
 # Global variable to store the state of the bot
 global_state = BotState.IDLE
@@ -166,9 +168,6 @@ def create_bot() -> commands.Bot:
             await ctx.send("Engaged")
 
     return bot
-
-
-from langchain.schema import HumanMessage, AIMessage
 
 
 def change_chat_history(user_chat_history: List[Tuple[str, str]]) -> List[Union[HumanMessage, AIMessage]]:
