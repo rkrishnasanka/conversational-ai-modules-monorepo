@@ -1,58 +1,74 @@
-import logging
-import json
-from typing import Optional, Dict
-from framework import Framework
+from dataclasses import dataclass
+from typing import Dict, Any, Optional
+from tree_of_thoughts import TreeOfThoughts
+
+@dataclass
+class ToTExecutorInputs:
+    """
+    Data class to hold input parameters for TreeOfThoughtsExecutor.
+    """
+    api_key: str
+    sample_csv_data: Optional[str] = None
+    num_thoughts: Optional[int] = None
+    num_iterations: Optional[int] = None
+    json_output_prompt: Optional[str] = None
+    classification_prompt: Optional[str] = None
+    thought_generation_prompt: Optional[str] = None
+    evaluation_prompt: Optional[str] = None
+
 
 class TreeOfThoughtsExecutor:
     """
-    Executor class for solving problems using the Tree of Thoughts framework.
+    Executor class for the Tree of Thoughts process.
     
-    Attributes:
-        api_key (str): The API key for accessing the OpenAI service.
-        sample_csv_data (Optional[str]): Sample CSV data for testing purposes.
-        tot_framework (Framework): Instance of the Framework class for problem-solving.
+    This class initializes and executes the Tree of Thoughts algorithm
+    using the provided input parameters.
     """
+
+    def __init__(self, data_inputs: ToTExecutorInputs):
+        """
+        Initialize the TreeOfThoughtsExecutor.
+
+        Args:
+            data_inputs (DataInputs): An instance of DataInputs containing all necessary parameters.
+
+        Raises:
+            ValueError: If required inputs are missing.
+        """
+        if not data_inputs.json_output_prompt:
+            raise ValueError("JSON output prompt must be provided")
+        if not data_inputs.classification_prompt:
+            raise ValueError("Classification prompt must be provided")
+
+        self.data_inputs: ToTExecutorInputs = data_inputs
+
+        self.num_thoughts = data_inputs.num_thoughts or 3
+        self.num_iterations = data_inputs.num_iterations or 3
+
+        self.tree_of_thoughts = TreeOfThoughts(
+            api_key=data_inputs.api_key,
+            sample_data=data_inputs.sample_csv_data if data_inputs.sample_csv_data else None,
+            classification_prompt=data_inputs.classification_prompt,
+            thought_generation_prompt=data_inputs.thought_generation_prompt,
+            state_evaluation_prompt=data_inputs.evaluation_prompt,
+            json_output_prompt=self.data_inputs.json_output_prompt
+        )
     
-    def __init__(self, api_key: str, sample_csv_data: Optional[str] = None):
+    def execute(self, user_query: str) -> Dict[str, Any]:
         """
-        Initialize the executor with the provided API key and optional sample CSV data.
-
-        Args:
-            api_key (str): The API key for accessing the OpenAI service.
-            sample_csv_data (Optional[str]): Sample CSV data for testing purposes.
-        """
-        if not api_key:
-            raise ValueError("api_key must not be empty")
-
-        self.sample_csv_data = sample_csv_data
-        self.api_key = api_key
-        self.tot_framework = Framework(api_key=self.api_key)
-        logging.info("TreeOfThoughtsExecutor initialized successfully.")
-
-    def execute(self, user_query: str, num_thoughts: int = 3, max_steps: int = 3, best_states_count: int = 2) -> str:
-        """
-        Execute the problem-solving process for the given user query.
-
-        Args:
-            user_query (str): The user's problem query to be solved.
-            num_thoughts (int): The number of thoughts to generate at each step. Default is 3.
-            max_steps (int): The maximum number of steps to perform in the BFS. Default is 3.
-            best_states_count (int): The number of best states to keep at each step. Default is 2.
+        Execute the Tree of Thoughts process.
 
         Returns:
-            str: The final output as a JSON string.
-        """
-        if not user_query:
-            raise ValueError("user_query must not be empty")
+            Dict[str, Any]: The result of the Tree of Thoughts process.
 
-        logging.info(f"Starting execution process for query: {user_query}")
-        try:
-            result = self.tot_framework.solve(problem=user_query, k=num_thoughts, T=max_steps, b=best_states_count)
-            best_state, best_path = result
-            parsed_solution = self.tot_framework.parse_solution(best_state, best_path)
-            output = self.tot_framework.generate_output(parsed_solution)
-            logging.info("Completed the problem-solving process.")
-            return output
-        except Exception as e:
-            logging.error(f"Error during execution: {e}")
-            return json.dumps({"error": str(e)})
+        Raises:
+            ValueError: If user_query is empty.
+        """
+
+        return self.tree_of_thoughts.solve(
+            user_input=user_query,
+            chat_history=[],  # Assuming no chat history for this example
+            num_thoughts=self.num_thoughts,
+            max_steps=self.num_iterations,
+            best_states_count=2  # Adjust as needed
+        )

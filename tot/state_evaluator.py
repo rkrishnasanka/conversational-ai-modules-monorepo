@@ -1,33 +1,56 @@
 import openai
 from typing import List
-import logging
-from embedding_utils import get_openai_embedding, cosine_similarity
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
+from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 
-logger = logging.getLogger(__name__)
-
-def evaluate_states(states: List[str], query: str) -> List[float]:
+class StateEvaluator:
     """
-    Evaluate the given states for their relevance and usefulness in addressing the problem.
-
-    Args:
-        states (List[str]): The states to be evaluated.
-        query (str): The original problem query.
-
-    Returns:
-        List[float]: The combined scores (ratings and similarities) for each state.
+    Evaluates problem-solving states using OpenAI's GPT model.
     """
-    prompt = "Evaluate the following states in terms of their relevance and usefulness for addressing the problem. Rate each state on a scale of 0 to 10, where 10 is the most relevant and useful."
-    
-    states_text = "\n".join(f"{i+1}. {state}" for i, state in enumerate(states))
-    
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant evaluating problem-solving states."},
-        {"role": "user", "content": f"{prompt}\n\n{states_text}"},
-        {"role": "user", "content": "Provide only the numerical ratings, one per line:"}
-    ]
-    
-    try:
-        response = openai.ChatCompletion.create(
+
+    def __init__(self, api_key: str, evaluation_prompt: str, number_of_iterations: int = 3):
+        """
+        Initialize the StateEvaluator.
+
+        Args:
+            api_key (str): OpenAI API key.
+            evaluation_prompt (str, optional): Custom prompt for state evaluation.
+        """
+        self.api_key = api_key
+        self.number_of_iterations = number_of_iterations
+        
+        # Default evaluation prompt if not provided
+        self.evaluation_prompt = evaluation_prompt or """
+        Evaluate the following states in terms of their relevance and usefulness for addressing the problem. Rate each state on a scale of 0 to 10, where 10 is the most relevant and useful.
+
+        {states_text}
+
+        Provide only the numerical ratings, one per line:
+        """
+
+    def evaluate_states(self, states: List[str]) -> List[float]:
+        """
+        Evaluate a list of states using the OpenAI API.
+
+        Args:
+            states (List[str]): List of states to evaluate.
+
+        Returns:
+            List[float]: List of ratings for each state.
+        """
+        # Format states for the prompt
+        states_text = "\n".join(f"{i+1}. {state}" for i, state in enumerate(states))
+        
+        prompt = self.evaluation_prompt.format(states_text=states_text)
+        
+        messages = [
+            ChatCompletionSystemMessageParam(role= "system", content= "You are a helpful assistant evaluating problem-solving states."),
+            ChatCompletionUserMessageParam(role= "user", content= prompt)
+        ]
+        
+        # Call OpenAI API for state evaluation
+        response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             max_tokens=100,
@@ -35,21 +58,15 @@ def evaluate_states(states: List[str], query: str) -> List[float]:
             temperature=0.3
         )
 
-        ratings_text = response.choices[0].message['content'].strip()
-        ratings = [float(rating) for rating in ratings_text.split('\n') if rating.replace('.', '').isdigit()]
+        # Extract and process ratings from the response
+        ratings_text = response.choices[0].message.content
+        if ratings_text is None:
+            return [0.0] * len(states)
+        else:
+            ratings_text = ratings_text.strip()
+            ratings = [float(rating) for rating in ratings_text.split('\n') if rating.replace('.', '').isdigit()]
         
+        # Ensure we have a rating for each state
         if len(ratings) < len(states):
             ratings.extend([0.0] * (len(states) - len(ratings)))
-        ratings = ratings[:len(states)]
-        
-        # Calculate OpenAI embeddings for query and states
-        query_embedding = get_openai_embedding(query)
-        states_embeddings = [get_openai_embedding(state) for state in states]
-        similarities = [cosine_similarity(query_embedding, state_embedding) for state_embedding in states_embeddings]
-        
-        # Combine ratings and similarities
-        combined_scores = [(rating + similarity) / 2 for rating, similarity in zip(ratings, similarities)]
-        return combined_scores
-    except Exception as e:
-        logger.error(f"Error in state evaluation: {e}")
-        return [0.0] * len(states)
+        return ratings[:len(states)]

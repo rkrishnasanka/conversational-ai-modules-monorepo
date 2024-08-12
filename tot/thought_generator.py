@@ -1,30 +1,62 @@
 import openai
 from typing import List
-import logging
+from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
+from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 
-logger = logging.getLogger(__name__)
-
-def generate_thoughts(state: str, k: int) -> List[str]:
+class ThoughtGenerator:
     """
-    Generate thoughts or considerations for the given state.
-
-    Args:
-        state (str): The current state of the problem.
-        k (int): The number of thoughts to generate.
-
-    Returns:
-        List[str]: A list of generated thoughts.
+    Generates thoughts for problem-solving using OpenAI's GPT model.
     """
-    prompt = f"Given the current state of the problem:\n\n{state}\n\nGenerate {k} possible next thoughts or considerations. Each thought should provide a new perspective or additional information that could be relevant to addressing the problem."
-    
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant generating thoughts for problem-solving."},
-        {"role": "user", "content": prompt},
-        {"role": "user", "content": f"Your response should be in the following format:\n1. [First thought]\n2. [Second thought]\n...\n{k}. [Last thought]"}
-    ]
-    
-    try:
-        response = openai.ChatCompletion.create(
+
+    def __init__(self, api_key: str, thought_generation_prompt: str):
+        """
+        Initialize the ThoughtGenerator.
+
+        Args:
+            api_key (str): OpenAI API key.
+            thought_generation_prompt (str, optional): Custom prompt for thought generation.
+        """
+        self.api_key = api_key
+        openai.api_key = self.api_key
+        
+        # Default thought generation prompt if not provided
+        self.thought_generation_prompt = thought_generation_prompt or """
+        Given the current state of the problem:
+
+        {current_state}
+
+        Generate {num_thoughts} possible next thoughts or considerations. Each thought should provide a new perspective or additional information that could be relevant to addressing the problem.
+
+        Your response should be in the following format:
+        1. [First thought]
+        2. [Second thought]
+        ...
+        {num_thoughts}. [Last thought]
+        """
+
+    def generate_thoughts(self, current_state: str, num_thoughts: int) -> List[str]:
+        """
+        Generate thoughts based on the current state.
+
+        Args:
+            current_state (str): The current state of the problem.
+            num_thoughts (int): Number of thoughts to generate.
+
+        Returns:
+            List[str]: List of generated thoughts.
+        """
+        prompt = self.thought_generation_prompt.format(
+            current_state=current_state,
+            num_thoughts=num_thoughts
+        )
+        
+        messages = [
+            ChatCompletionSystemMessageParam(role= "system", content= "You are a helpful assistant generating thoughts for problem-solving."),
+            ChatCompletionUserMessageParam(role="user", content= prompt)
+        ]
+        
+        # Call OpenAI API for thought generation
+        response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             max_tokens=100,
@@ -32,9 +64,11 @@ def generate_thoughts(state: str, k: int) -> List[str]:
             temperature=0.7
         )
 
-        thoughts_text = response.choices[0].message['content'].strip()
-        thoughts = [thought.split('. ', 1)[1] for thought in thoughts_text.split('\n') if '. ' in thought]
-        return thoughts[:k]
-    except Exception as e:
-        logger.error(f"Error in thought generation: {e}")
-        return [f"Error in thought generation: {e}"] * k
+        # Extract and process thoughts from the response
+        thoughts_text = response.choices[0].message.content #['content'].strip()
+        if thoughts_text is not None:
+            thoughts_text = thoughts_text.strip()
+            thoughts = [thought.split('. ', 1)[1] for thought in thoughts_text.split('\n') if '. ' in thought]
+            return thoughts[:num_thoughts]  # Ensure we return exactly num_thoughts thoughts
+        else:
+            raise Exception("No thoughts generated.")
