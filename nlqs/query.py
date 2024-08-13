@@ -1,45 +1,23 @@
 import json
 import logging
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Tuple
-from xml.dom.minidom import Document
+import re
+from typing import Dict, List, Tuple, Union
 
-import chromadb
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
-from langchain_community.document_loaders.csv_loader import CSVLoader
-from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from pydantic.v1 import SecretStr
+from langchain_openai import ChatOpenAI, OpenAI
+from nlqs.database.sqlite import SQLiteDriver
+from nlqs.database.postgres import PostgresDriver
 
-from discord_bot.parameters import (
-    CHROMA_COLLECTION_NAME,
-    LOGGER_FILE,
-    OPENAI_API_KEY,
-    SQL_TABLE_NAME,
-    SQLITE_DB_FILE,
-)
-from nlqs.database.sqlite import fetch_data_from_sqlite
+import chromadb
 
 # Create a logger object
 logger = logging.getLogger(__name__)
 
 # Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR)
 logger.setLevel(logging.INFO)
-
-# Create a file handler to save logs
-file_handler = logging.FileHandler(LOGGER_FILE)
-
-# Create a formatter to format the log messages
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-
-# Add the formatter to the file handler
-file_handler.setFormatter(formatter)
-
-# Add the file handler to the logger
-logger.addHandler(file_handler)
 
 
 @dataclass
@@ -59,26 +37,35 @@ class SummarizedInput:
 #         self.column_descriptions, self.numerical_columns, self.categorical_columns = retrieve_descriptions_and_types_from_db()
 
 
-def get_chroma_collections() -> chromadb.Collection:
+def get_chroma_collection(
+        chroma_client,
+        collection_name: str, 
+        db_driver: Union[SQLiteDriver, PostgresDriver], 
+        dataset_table_name: str
+    ) -> chromadb.Collection:
     """Gets the chroma collection.
 
     Returns:
         Chroma: Chroma collection.
     """
-    chroma_client: chromadb.ClientAPI = chromadb.PersistentClient()
-    collection_name = CHROMA_COLLECTION_NAME
+   
     collections = [col.name for col in chroma_client.list_collections()]
-    print(collections)
 
     if collection_name in collections:
         print(f"Collection '{collection_name}' already exists, getting existing collection...")
         chroma_collection = chroma_client.get_collection(collection_name)
     else:
-        print("Creating new collection...")
+        print(f"Collection '{collection_name}' does not exists, Creating new collection...")
         collection = chroma_client.create_collection(collection_name)
 
-        data = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
+        data = db_driver.fetch_data_from_database(dataset_table_name)
 
+        if data is None:
+            raise ValueError("No data found in the database.")
+
+        # TODO - Modify this project specific stuff to work with the data driver
+
+        # TODO - Get column names from the database
         data["combined_text"] = data[
             ["Product", "Category", "PackageID", "MedicalBenefitsReported", "Description"]
         ].apply(lambda x: " ".join(x.dropna().astype(str)), axis=1)
@@ -115,9 +102,6 @@ def get_chroma_collections() -> chromadb.Collection:
     return chroma_collection
 
 
-# Initializes the ChatOpenAI LLM model
-llm = ChatOpenAI(temperature=0, model="gpt-4", api_key=SecretStr(OPENAI_API_KEY), max_tokens=1000)
-
 # Default system prompt for the LLM.
 DEFAULT_SYSTEM_PROMPT = (
     "You are a professional medical assistant, adept at handling inquiries related to medical products."
@@ -147,6 +131,7 @@ def summarize(
     column_descriptions_dictionary: Dict[str, str],
     numerical_columns: List[str],
     categorical_columns: List[str],
+    llm: Union[ChatOpenAI, OpenAI], 
 ) -> SummarizedInput:
     """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
 
@@ -156,6 +141,7 @@ def summarize(
         column_descriptions (dict[str, str]): The column descriptions.
         numerical_columns (list[str]): The numerical columns.
         categorical_columns (list[str]): The categorical columns.
+        llm (Union[ChatOpenAI, OpenAI]): The LLM object.(Contains the details of the language we are using.)
 
     Returns:
         dict: {
@@ -180,18 +166,24 @@ def summarize(
     # Summarize the user input
     instruction = f"""
     You will receive a user input and the chat history. Your task is to:
-    1. Analyze the user input and identify key details based on our available data and chat history.
-    2. Summarize the input, classifying the data into qualitative and quantitative categories.
-    3. Identify Relevant Columns:
-        - Determine which columns from the data are needed to provide an answer.
-        - Pay close attention to the user's intent and specific mentions of data columns:
-        - Are they seeking information about products, medications, treatments, or other relevant categories?
-        - If the user is seeking information about a product, provide the URL of the product if available.
-        - Look for explicit mentions of column names, synonyms, or phrases indicating the type of information requested. 
-        - If the user specifies certain attributes or metrics, consider these as user-requested columns.
-    4. Classify the user's intent. Possible intents include: phatic_communication, sql_injection, profanity, and other.
-    5. Output the result in a JSON format.
-    6. Do not output any other information except the JSON. Do not add [OUT], [/OUT] to the output.(!important)
+    
+    1. **Single-Word Queries**: If the user input is a single word or very short (e.g., one or two words), provide a direct response if possible. If the query is unclear, prompt the user to elaborate.
+       - Example response: "It seems you're asking about something specific. Could you provide more details?"
+
+    2. **Structured Analysis**: For all other inputs, analyze the user input and identify key details based on our available data and chat history.
+    
+    3. Summarize the input, classifying the data into qualitative and quantitative categories.
+    
+    4. Identify relevant columns from which we can provide an answer. Pay close attention to the user's intent and specific mentions of data columns:
+       - Are they seeking information about products, medications, treatments, or other relevant categories?
+       - If the user is seeking information about a product, also provide the URL of the product if available.
+       - Look for explicit mentions of column names, synonyms, or phrases that indicate the type of information requested. If the user specifies certain attributes or metrics, consider these as user-requested columns.
+
+    5. Classify the user's intent. Possible intents include: phatic_communication, sql_injection, profanity, and other.
+
+    6. Output the result in a JSON format.
+
+    7. Do not output any other information except the JSON. Do not add [OUT], [/OUT] to the output.(!important)
     
     The output JSON should have the following structure:
 
@@ -220,6 +212,7 @@ def summarize(
 
     Now, summarize the user input and provide the structured output in JSON format.
     """
+
     system_prompt = "You are an expert in summarization and expressing key ideas succinctly."
     prompt = get_prompt(instruction, system_prompt)
     prompt_template = PromptTemplate(template=prompt, input_variables=["chat_history", "user_input"])
@@ -281,6 +274,8 @@ def generate_query(
     column_descriptions: Dict[str, str],
     numerical_columns: List[str],
     categorical_columns: List[str],
+    llm: Union[ChatOpenAI, OpenAI],
+    dataset_table_name: str
 ) -> str:
     """Generates an SQL query based on the user input and chat history.
 
@@ -291,6 +286,8 @@ def generate_query(
         column_descriptions (dict): the column descriptions.
         numerical_columns (list[str]): the numerical columns.
         categorical_columns (list[str]): the categorical columns.
+        llm (Union[ChatOpenAI, OpenAI]): the LLM object.
+        dataset_table_name (str): the dataset table name.
 
     Returns:
         str: execute_query function executes the SQL query
@@ -312,7 +309,7 @@ def generate_query(
     numerical columns in the data: {numerical_columns}\n\n 
     descriptive columns in the data: {categorical_columns}\n\n 
     The columns in the database were {', '.join(column_descriptions.keys())}\n\n
-    Table name: {SQL_TABLE_NAME}\n\n
+    Table name: {dataset_table_name}\n\n
     User input: {user_input}\n\n
     quantitative data in the user input: {quantitative_data}\n\n
     qualitative data in the user input: {qualitative_data}\n\n
@@ -332,6 +329,7 @@ def generate_query(
     llm_chain = LLMChain(llm=llm, prompt=prompt_template, verbose=True, memory=memory)
 
     query = llm_chain.run({"chat_history": chat_history, "user_input": user_input}).strip()
+    query = re.sub(r"```sql|```", "", query)
     logger.info(f"Query: {query}")
 
     return query

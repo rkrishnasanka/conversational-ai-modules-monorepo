@@ -6,7 +6,8 @@ And this could be greatful while testing the bot.
 
 import gradio as gr
 
-from nlqs.workflow import main_workflow
+from nlqs.nlqs import NLQS
+from nlqs.parameters import chroma_config, connection_config
 
 # Gradio interface
 with gr.Blocks(title="Chatbot using OpenAI") as demo:
@@ -17,6 +18,11 @@ with gr.Blocks(title="Chatbot using OpenAI") as demo:
 
     clear = gr.ClearButton([msg, chatbot])
 
-    msg.submit(main_workflow, [msg, chatbot], [msg, chatbot])
+    btn = gr.Button("submit")
+
+    nlqs_instance = NLQS(connection_config, chroma_config)
+
+    msg.submit(nlqs_instance.execute_nlqs_workflow, [msg, chatbot], [msg, chatbot])
+    btn.click(nlqs_instance.execute_nlqs_workflow, [msg, chatbot], [msg, chatbot])
 
 demo.launch(debug=True, share=True)

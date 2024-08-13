@@ -6,36 +6,43 @@ the API to query the SQLite database.
 import sqlite3
 
 import pandas as pd
+from pathlib import Path
 
-from discord_bot.parameters import (
-    PRODUCT_DESCRIPTIONS_CSV,
-    SQL_TABLE_NAME,
-    SQLITE_DB_FILE,
-)
+from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 
+
+
+PRODUCT_DESCRIPTIONS_CSV ="./product_descriptions.csv"
+
+# def convert_csv_to_sqlite():
+
+# Read the CSV file into a DataFrame
+# Attempt using UTF-8 encoding first
 try:
-    # Read the CSV file into a DataFrame
-    # Attempt using UTF-8 encoding first
-    try:
-        df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV)
-    except UnicodeDecodeError:
-        # If UTF-8 fails, fall back to ISO-8859-1
-        df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV, encoding="ISO-8859-1")
+    df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV)
+except UnicodeDecodeError:
+    # If UTF-8 fails, fall back to ISO-8859-1
+    df = pd.read_csv(PRODUCT_DESCRIPTIONS_CSV, encoding="ISO-8859-1")
 
-    # Connect to the SQLite database
-    conn = sqlite3.connect(SQLITE_DB_FILE)
+# Connect to the SQLite database
+# conn = sqlite3.connect(connection_config.db_file)
 
-    # Write the DataFrame to a SQLite table
-    df.to_sql(SQL_TABLE_NAME, conn, if_exists="replace", index=False)
+driver = SQLiteDriver(SQLiteConnectionConfig(
+    db_file=Path("aegion.db"),
+    dataset_table_name="new_dataset"
+))
 
-    print(f"Data written to {SQLITE_DB_FILE}")
+driver.connect()
 
-    # Commit the changes
-    conn.commit()
+conn = driver._db_connection
 
-except Exception as e:
-    print(f"An error occurred: {e}")
 
-finally:
-    # Close the connection
-    conn.close()
+# Write the DataFrame to a SQLite table
+df.to_sql(driver.db_config.dataset_table_name, conn, if_exists="replace", index=False)
+
+print(f"Data written to {driver.db_config.dataset_table_name} in {driver.db_config.db_file}")
+
+# Commit the changes
+conn.commit()
+conn.close()
+

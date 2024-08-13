@@ -1,39 +1,25 @@
 import sqlite3
-from pathlib import Path
-from typing import List, Optional
-
-import pandas as pd
+from typing import Union
 from langchain.chains import LLMChain
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic.v1 import SecretStr
 
-from discord_bot.parameters import OPENAI_API_KEY, SQL_TABLE_NAME, SQLITE_DB_FILE
+from nlqs.parameters import OPENAI_API_KEY
+from nlqs.database.sqlite import SQLiteDriver
+from nlqs.database.postgres import PostgresDriver
+from pathlib import Path
+from dataclasses import dataclass
+import pandas as pd
+
+@dataclass
+class ChromaDBConfig:
+    collection_name: str
+    persist_path: Path
+    is_local: bool = True
 
 
-# Fetch data from SQLite
-def fetch_data_from_sqlite(db_file: Path, table_name: str) -> Optional[pd.DataFrame]:
-    """Fetch data from a SQLite database table.
-
-    Args:
-        db_file (Path): Path to the SQLite database file.
-        table_name (str): Name of the table to fetch data from.
-
-    Returns:
-        Optional[pd.DataFrame]: A DataFrame containing the data from the table, or None if an error occurred.
-    """
-    try:
-        conn = sqlite3.connect(db_file)
-        query = f"SELECT * FROM {table_name}"
-        df = pd.read_sql_query(query, conn)
-        conn.close()
-    except sqlite3.Error as e:
-        print(f"Error fetching data: {e}")
-        return None  # Return an empty DataFrame on error
-
-    return df
-
-
+# TODO - Use the database Object for doing this
 def get_column_descriptions(dataframe, input_text) -> dict:
     """Get column descriptions from OpenAI API."""
     # Initialize an empty dictionary to store column descriptions
@@ -97,8 +83,12 @@ def get_column_descriptions(dataframe, input_text) -> dict:
     return descriptions
 
 
-def store_descriptions_in_db(descriptions, numerical_columns, categorical_columns, db_file=SQLITE_DB_FILE):
-    conn = sqlite3.connect(db_file)
+#  TODO - Use the database Object for doing this
+def store_descriptions_in_db(descriptions, numerical_columns, categorical_columns, db_driver: Union[SQLiteDriver, PostgresDriver]):
+    conn = db_driver._db_connection
+    if conn is None:
+        raise ValueError("Database connection not established.")
+    
     c = conn.cursor()
 
     # Create table for column descriptions
@@ -151,26 +141,22 @@ def store_descriptions_in_db(descriptions, numerical_columns, categorical_column
     conn.commit()
     conn.close()
 
+# TODO- Figure out where to call this function
+def generate_column_description(df: pd.DataFrame, db_driver: Union[SQLiteDriver, PostgresDriver]):
 
-df = fetch_data_from_sqlite(Path(SQLITE_DB_FILE), SQL_TABLE_NAME)
+    # Get column descriptions
+    column_descriptions = get_column_descriptions(
+        dataframe=df, input_text="Please provide a detailed description of each column in the given dataset."
+    )
 
-if df is None:
-    print("Error fetching data from SQLite.")
-    raise Exception("Error fetching data from SQLite.")
+    # Identify numerical and categorical columns
+    numerical_columns = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+    categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
-# Get column descriptions
-column_descriptions = get_column_descriptions(
-    dataframe=df, input_text="Please provide a detailed description of each column in the given dataset."
-)
+    # Store descriptions and column types in the database
+    store_descriptions_in_db(
+        descriptions=column_descriptions, numerical_columns=numerical_columns, categorical_columns=categorical_columns, db_driver=db_driver
+    )
 
-# Identify numerical and categorical columns
-numerical_columns = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
-categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
-
-# Store descriptions and column types in the database
-store_descriptions_in_db(
-    descriptions=column_descriptions, numerical_columns=numerical_columns, categorical_columns=categorical_columns
-)
-
-print(column_descriptions)
-print("Column descriptions and column types stored in the database.")
+    print(column_descriptions)
+    print("Column descriptions and column types stored in the database.")
