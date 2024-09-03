@@ -1,39 +1,32 @@
-from re import template
-from typing import Any, List, Literal, Optional, Tuple, Union
-
+import re
+from typing import List, Optional, Tuple, Union
 import chromadb
 from chromadb.config import Settings
-from langchain.chains import LLMChain, RetrievalQA
-from langchain_community.llms import OpenAIChat
+from langchain.chains import RetrievalQA
 from langchain_community.vectorstores import Chroma
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-
-# from langchain.prompts import ChatPromptTemplate, PromptTemplate
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    HumanMessagePromptTemplate,
-    PromptTemplate,
-)
-from langchain_core.prompts.chat import BaseMessagePromptTemplate
-from langchain_openai import ChatOpenAI, OpenAI, OpenAIEmbeddings
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
-
 from chatbot.chat_reference import ChatReference
 from chatbot.parameters import (
     OPENAI_API_KEY,
     VECTORDB_HOST,
     VECTORDB_PASSWORD,
-    VECTORDB_PERSIST_DIRECTORY,
     VECTORDB_PORT,
     VECTORDB_USERNAME,
 )
-from discord_bot.parameters import OUTPUT_COLUMNS
 
 
-def query_template(output_columns, previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None):
+def query_template(
+    user_input: str,
+    retrieved_data,
+    previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
+):
     messages = [
-    ("system",
-        """Act as: A consultant and subject matter expert educating, by the provided context, on the topic of Evidence-based Medical Cannabis. 
+        (
+            "system",
+            """Act as: A consultant and subject matter expert educating, by the provided context, on the topic of Evidence-based Medical Cannabis. 
         
         The material sourced for the output script should prioritize primary resources and sources of information of the highest academic quality, including meta-analyses, randomized controlled trials, and other high-quality clinical-trial data, reviews, and publications. Published, peer-reviewed data should be prioritized over expert opinion, and non-published information and/or non-expert opinions should be disregarded when mining for source materials.
 
@@ -42,7 +35,7 @@ def query_template(output_columns, previous_messages: Optional[List[Union[HumanM
         The Output: The length of each response should be concise, taking information from the provided context and utilizing the following guidelines:
 
         1. **Handle Basic Greetings**: If the user input is a simple greeting (e.g., "hello", "hi", "hey", "greetings"), respond with a friendly greeting message. Skip the structured analysis and JSON output for these cases.
-       - Example response: "Hello! How can I assist you today?"
+       - Example response: "Hello! How can I assist you today? and any other appropriate responses."
 
         2. Reading Level: The reading level of the material should be no more advanced than a 12th-grade reading level. Scientific jargon or words should be minimized or preferentially traded for more simplified language with explanations.
 
@@ -64,28 +57,18 @@ def query_template(output_columns, previous_messages: Optional[List[Union[HumanM
 
         Important Note: Answers should only be sourced from the provided context or data and analysis mined from published, peer-reviewed scientific literature. Under no circumstances should creativity or fabricated information find its way into outputs at any time. Where low-quality data may have been sourced, indicate this by using the parenthetical phrase “(sourced from potentially low-quality sources)” at the end of the relevant sentence.
 
-        Other Notes: Avoid self-referencing or mentioning "I," "we," or "AI" in the output. Directly provide the information without referencing the speaker. If you receive any links in the input, please highlight them in the output."""
+        Other Notes: Avoid self-referencing or mentioning "I," "we," or "AI" in the output. Directly provide the information without referencing the speaker. If you receive any links in the input, please highlight them in the output.""",
         ),
+        ("user", f"user input:{user_input} retreived data: {retrieved_data}"),
     ]
-
 
     # TODO: Loop through previous messages and add them to the template based on AI or Human
     if previous_messages is not None:
         for message in previous_messages:
             if isinstance(message, HumanMessage):
-                if not output_columns:
-                    messages.append(("human", message.content)) # type: ignore
-                else:
-                    messages.append(
-                        (
-                            "human",
-                            message.content
-                            + "I specifically only want to know about the columns: " # type: ignore
-                            + " ".join(output_columns),
-                        )
-                    )
+                messages.append(("human", str(message.content)))
             elif isinstance(message, AIMessage):
-                messages.append(("ai", message.content)) # type: ignore
+                messages.append(("ai", str(message.content)))
     template = ChatPromptTemplate.from_messages(messages)
 
     return template
@@ -137,7 +120,9 @@ class Chatbot:
     def initialize_qachain(self) -> None:
         """Initializes the QA Chain"""
 
-        llm = ChatOpenAI(api_key=SecretStr(OPENAI_API_KEY), temperature=0.9, model="gpt-4")
+        llm = ChatOpenAI(
+            api_key=SecretStr(OPENAI_API_KEY), temperature=0.1, model="gpt-4", verbose=True, max_tokens=1500
+        )
 
         self.qachain = RetrievalQA.from_chain_type(
             llm=llm,
@@ -149,6 +134,7 @@ class Chatbot:
     def converse(
         self,
         user_input: str,
+        retrieved_data,
         previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
     ) -> Tuple[str, List[ChatReference]]:
         """Converse with the chatbot
@@ -163,8 +149,13 @@ class Chatbot:
         if previous_messages is None:
             previous_messages = []
         previous_messages.append(HumanMessage(content=user_input))
+        updated_retrieved_data = re.sub("{|}", "", str(retrieved_data))
 
-        prompt = query_template(output_columns=OUTPUT_COLUMNS, previous_messages=previous_messages)
+        prompt = query_template(
+            user_input=user_input,
+            retrieved_data=updated_retrieved_data,
+            previous_messages=previous_messages,
+        )
         result = self.qachain({"query": prompt.format(user_question=user_input)})
 
         refernces_list = []

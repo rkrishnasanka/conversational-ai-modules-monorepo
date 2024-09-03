@@ -4,14 +4,21 @@ This is to show off the bot with less time and effort.
 And this could be greatful while testing the bot.
 """
 
+from pathlib import Path
 import gradio as gr
 
-from nlqs.nlqs import NLQS
-from nlqs.parameters import chroma_config, connection_config
+from nlqs.database.sqlite import SQLiteConnectionConfig
+from nlqs.nlqs import NLQS, ChromaDBConfig
+
+# ChromaDB configuration
+chroma_config = ChromaDBConfig(collection_name="aegion")
+
+# SQLite configuration
+sqlite_config = SQLiteConnectionConfig(db_file=Path("../aegion.db"), dataset_table_name="new_dataset")
 
 # Gradio interface
-with gr.Blocks(title="Chatbot using OpenAI") as demo:
-    gr.Markdown("# Chatbot using OpenAI")
+with gr.Blocks(title="LUNA Chatbot") as demo:
+    gr.Markdown("# LUNA Chatbot")
 
     chatbot = gr.Chatbot([], elem_id="chatbot", height=700)
     msg = gr.Textbox(show_copy_button=True)
@@ -20,9 +27,13 @@ with gr.Blocks(title="Chatbot using OpenAI") as demo:
 
     btn = gr.Button("submit")
 
-    nlqs_instance = NLQS(connection_config, chroma_config)
+    nlqs_instance = NLQS(sqlite_config, chroma_config)
 
     msg.submit(nlqs_instance.execute_nlqs_workflow, [msg, chatbot], [msg, chatbot])
     btn.click(nlqs_instance.execute_nlqs_workflow, [msg, chatbot], [msg, chatbot])
 
-demo.launch(debug=True, share=True)
+try:
+    demo.launch(debug=True, share=True)
+except Exception as e:
+    print(e)
+    demo.launch(debug=True)
