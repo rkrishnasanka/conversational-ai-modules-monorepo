@@ -4,7 +4,8 @@ import os
 from typing import LiteralString
 from dotenv import load_dotenv
 from tot.tree_of_thoughts_executor import TreeOfThoughtsExecutor, ToTExecutorInputs
-
+from tot.thought_generator import ThoughtGenerator
+from tot.state_evaluator import StateEvaluator
 # Setup basic logging configuration
 logging.basicConfig(level=logging.INFO)
 
@@ -73,12 +74,12 @@ def get_classification_prompt() -> LiteralString:
     Respond with only the number corresponding to the intent.
     """
 
-# Example usage
-if __name__ == "__main__":
+def main():
     # Retrieve the API key from environment variables
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        raise ValueError("OPENAI_API_KEY not found in environment variables")
+        logging.error("OPENAI_API_KEY not found in environment variables")
+        return
 
     # Sample CSV data (replace this with your actual sample data)
     sample_csv_data = """Location,Room,Product,Category,PackageID,Batch,CBD,THC,CBDA,CBG,CBN,THCA,CustomerRating,MedicalBenefitsReported,RepeatPurchaseFrequency,URL,Description
@@ -94,19 +95,23 @@ Los Angeles,Bedroom,THC Gummies,Edibles,PKG002,B002,0,100,0,0,0,0,4.8,Relaxation
         executor = TreeOfThoughtsExecutor(
             ToTExecutorInputs(
                 api_key=api_key,
-                sample_csv_data=sample_csv_data,
-                num_thoughts=3,
-                num_iterations=3,
                 json_output_prompt=get_json_output_prompt(),
                 classification_prompt=get_classification_prompt(),
-                # You can add custom thought_generation_prompt and evaluation_prompt here if needed
+                thought_generation_prompt=ThoughtGenerator(api_key=api_key).thought_generation_prompt, # Uncomment if available
+                evaluation_prompt=StateEvaluator(api_key=api_key).evaluation_prompt, # Uncomment if available
+                sample_csv_data=sample_csv_data,
+                # num_thoughts=3,
+                # num_iterations=3
             )
         )
         
         # Execute the problem-solving process
-        output = executor.execute(user_query=user_query)
-        
+        output = executor.execute(user_query=user_query, chat_history=[])
+        print(output)
         # Print the result in a formatted JSON structure
         print(json.dumps(output, indent=2))
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
