@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from discord_bot.parameters import CHROMA_COLLECTION_NAME, OUTPUT_COLUMNS, SQL_TABLE_NAME, SQLITE_DB_FILE
 from nlqs.database.sqlite import SQLiteConnectionConfig
 import discord_bot.memory as memory
-from chatbot.conversation import Chatbot
+from expert_system.conversation import Chatbot
 from discord_bot.memory import (
     active_users,
     add_to_chat_history,

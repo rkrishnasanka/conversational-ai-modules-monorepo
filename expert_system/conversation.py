@@ -3,13 +3,13 @@ from typing import List, Optional, Tuple, Union
 import chromadb
 from chromadb.config import Settings
 from langchain.chains import RetrievalQA
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
-from chatbot.chat_reference import ChatReference
-from chatbot.parameters import (
+from expert_system.chat_reference import ChatReference
+from expert_system.parameters import (
     OPENAI_API_KEY,
     VECTORDB_HOST,
     VECTORDB_PASSWORD,
@@ -117,6 +117,9 @@ class Chatbot:
             client=chroma_client,
         )
 
+        # Test the connection
+        print(f"Testing connection to VectorDB (find a number > 0):{chroma_client.heartbeat()}")
+
     def initialize_qachain(self) -> None:
         """Initializes the QA Chain"""
 
@@ -157,7 +160,8 @@ class Chatbot:
             previous_messages=previous_messages,
         )
         result = self.qachain({"query": prompt.format(user_question=user_input)})
-
+        print("Result from qachain:")
+        print(result)
         refernces_list = []
         for source_document in result["source_documents"]:
             ref = ChatReference(
