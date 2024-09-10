@@ -4,6 +4,7 @@ from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 
+
 class StateEvaluator:
     def __init__(self, api_key: str, evaluation_prompt: Optional[str] = None):
         """StateEvaluator class for evaluating problem-solving states.
@@ -37,20 +38,18 @@ class StateEvaluator:
             List[float]: A list of numerical ratings for each state.
         """
         states_text = "\n".join(f"{i+1}. {state}" for i, state in enumerate(states))
-        
+
         prompt = self.evaluation_prompt.format(states_text=states_text)
-        
+
         messages = [
-            ChatCompletionSystemMessageParam(role="system", content="You are a helpful assistant evaluating problem-solving states."),
-            ChatCompletionUserMessageParam(role="user", content=prompt)
+            ChatCompletionSystemMessageParam(
+                role="system", content="You are a helpful assistant evaluating problem-solving states."
+            ),
+            ChatCompletionUserMessageParam(role="user", content=prompt),
         ]
-        
+
         response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=messages,
-            max_tokens=100,
-            n=1,
-            temperature=0.3
+            model="gpt-4o", messages=messages, max_tokens=100, n=1, temperature=0.3
         )
 
         ratings_text = response.choices[0].message.content
@@ -58,8 +57,8 @@ class StateEvaluator:
             return [0.0] * len(states)
         else:
             ratings_text = ratings_text.strip()
-            ratings = [float(rating) for rating in ratings_text.split('\n') if rating.replace('.', '').isdigit()]
-        
+            ratings = [float(rating) for rating in ratings_text.split("\n") if rating.replace(".", "").isdigit()]
+
         if len(ratings) < len(states):
             ratings.extend([0.0] * (len(states) - len(ratings)))
-        return ratings[:len(states)]
+        return ratings[: len(states)]
