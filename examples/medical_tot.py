@@ -1,16 +1,20 @@
-import logging
 import json
+import logging
 import os
 from typing import LiteralString
+
 from dotenv import load_dotenv
-from tot.tree_of_thoughts_executor import TreeOfThoughtsExecutor, ToTExecutorInputs
-from tot.thought_generator import ThoughtGenerator
+
 from tot.state_evaluator import StateEvaluator
+from tot.thought_generator import ThoughtGenerator
+from tot.tree_of_thoughts_executor import ToTExecutorInputs, TreeOfThoughtsExecutor
+
 # Setup basic logging configuration
 logging.basicConfig(level=logging.INFO)
 
 # Load environment variables from a .env file
 load_dotenv()
+
 
 def get_json_output_prompt() -> LiteralString:
     """
@@ -52,6 +56,7 @@ def get_json_output_prompt() -> LiteralString:
     The columns present in our database are: "Location,Room,Product,Category,PackageID,Batch,CBD,THC,CBDA,CBG,CBN,THCA,CustomerRating,MedicalBenefitsReported,RepeatPurchaseFrequency,URL,Description"
     """
 
+
 def get_classification_prompt() -> LiteralString:
     """
     Provide the classification prompt for intent classification.
@@ -73,6 +78,7 @@ def get_classification_prompt() -> LiteralString:
 
     Respond with only the number corresponding to the intent.
     """
+
 
 def main():
     # Retrieve the API key from environment variables
@@ -97,14 +103,16 @@ Los Angeles,Bedroom,THC Gummies,Edibles,PKG002,B002,0,100,0,0,0,0,4.8,Relaxation
                 api_key=api_key,
                 json_output_prompt=get_json_output_prompt(),
                 classification_prompt=get_classification_prompt(),
-                thought_generation_prompt=ThoughtGenerator(api_key=api_key).thought_generation_prompt, # Uncomment if available
-                evaluation_prompt=StateEvaluator(api_key=api_key).evaluation_prompt, # Uncomment if available
+                thought_generation_prompt=ThoughtGenerator(
+                    api_key=api_key
+                ).thought_generation_prompt,  # Uncomment if available
+                evaluation_prompt=StateEvaluator(api_key=api_key).evaluation_prompt,  # Uncomment if available
                 sample_csv_data=sample_csv_data,
                 # num_thoughts=3,
                 # num_iterations=3
             )
         )
-        
+
         # Execute the problem-solving process
         output = executor.execute(user_query=user_query, chat_history=[])
         print(output)
@@ -112,6 +120,7 @@ Los Angeles,Bedroom,THC Gummies,Edibles,PKG002,B002,0,100,0,0,0,0,4.8,Relaxation
         print(json.dumps(output, indent=2))
     except Exception as e:
         logging.error(f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     main()

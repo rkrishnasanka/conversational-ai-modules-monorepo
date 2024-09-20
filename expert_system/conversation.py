@@ -1,12 +1,16 @@
 import re
 from typing import List, Optional, Tuple, Union
+
 import chromadb
 from chromadb.config import Settings
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
+
 from expert_system.chat_reference import ChatReference
 from expert_system.parameters import (
     OPENAI_API_KEY,
@@ -15,8 +19,6 @@ from expert_system.parameters import (
     VECTORDB_PORT,
     VECTORDB_USERNAME,
 )
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 
 
 def query_template(

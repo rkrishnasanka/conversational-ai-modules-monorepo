@@ -1,5 +1,5 @@
 def get_json_output_prompt() -> str:
-        return """
+    return """
         User Query: {user_query}
         Final State: {final_state}
         Thought Path: {thought_path}
@@ -36,8 +36,9 @@ def get_json_output_prompt() -> str:
         Use the provided algorithm framework to guide the questioning process and product recommendations.
         """
 
+
 def get_classification_prompt() -> str:
-        return """
+    return """
         Classify the user's intent based on the following input:
 
         User Input: {user_input}
@@ -51,8 +52,9 @@ def get_classification_prompt() -> str:
         Respond with only the number corresponding to the intent.
         """
 
+
 def get_thought_generation_prompt() -> str:
-        return """
+    return """
         Given the current state of the problem:
 
         {current_state}
@@ -85,8 +87,9 @@ def get_thought_generation_prompt() -> str:
         Make sure you do not repeat the same thought twice.
         """
 
+
 def get_evaluation_prompt() -> str:
-        return """
+    return """
         Evaluate the potential next steps in the cannabis recommendation conversation based on the following criteria:
         1. Relevance to the user's stated needs and preferences for cannabis products
         2. Alignment with the algorithm framework for cannabis product recommendations
@@ -96,6 +99,7 @@ def get_evaluation_prompt() -> str:
 
         Provide a score from 1-10 for each potential next step, where 10 is the best.
         """
+
 
 def get_sample_data() -> str:
     # Sample data for guiding recommendations

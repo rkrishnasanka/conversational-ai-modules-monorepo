@@ -1,13 +1,15 @@
-import pytest
-from pathlib import Path
-from unittest.mock import patch, Mock
-import pandas as pd
 import sqlite3
-from sqlalchemy.exc import SQLAlchemyError
-from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
-from sqlalchemy import text
 import threading
 import time
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pandas as pd
+import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 
 
 def test_connect_successful(setup_database):

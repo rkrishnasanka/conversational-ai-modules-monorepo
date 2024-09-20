@@ -1,14 +1,15 @@
+import logging
 import re
 import sqlite3
-import logging
-import pandas as pd
-from pathlib import Path
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Sequence
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine.row import Row
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker
 
 from nlqs.database.abstract_driver import AbstractDriver
 
@@ -68,7 +69,6 @@ class SQLiteDriver(AbstractDriver):
 
         with self.Session() as session:
             try:
-
                 result = session.execute(text(query)).fetchall()
                 session.commit()
                 logger.info(f"Query executed successfully: {result}")

@@ -1,10 +1,12 @@
-from pathlib import Path
 import sqlite3
+from pathlib import Path
+from unittest.mock import Mock, patch
+
 import psycopg2
 import pytest
-from unittest.mock import patch, Mock
-from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
+
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
+from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 
 
 @pytest.fixture

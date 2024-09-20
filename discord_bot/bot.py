@@ -1,15 +1,13 @@
-from pathlib import Path
 import random
 import re
+from pathlib import Path
 from typing import List, Tuple, Union
+
 import discord
 from discord.ext import commands
 from langchain_core.messages import AIMessage, HumanMessage
-from discord_bot.parameters import CHROMA_COLLECTION_NAME, OUTPUT_COLUMNS, SQL_TABLE_NAME, SQLITE_DB_FILE
-from nlqs.database.postgres import PostgresConnectionConfig
-from nlqs.database.sqlite import SQLiteConnectionConfig
+
 import discord_bot.memory as memory
-from expert_system.conversation import Chatbot
 from discord_bot.memory import (
     active_users,
     add_to_chat_history,
@@ -17,7 +15,16 @@ from discord_bot.memory import (
     set_user_active,
     set_user_inactive,
 )
+from discord_bot.parameters import (
+    CHROMA_COLLECTION_NAME,
+    OUTPUT_COLUMNS,
+    SQL_TABLE_NAME,
+    SQLITE_DB_FILE,
+)
 from discord_bot.state import BotState, empty_active_users, new_user, user_exists
+from expert_system.conversation import Chatbot
+from nlqs.database.postgres import PostgresConnectionConfig
+from nlqs.database.sqlite import SQLiteConnectionConfig
 from nlqs.nlqs import NLQS, ChromaDBConfig, NLQSResult
 
 # Global variable to store the state of the bot

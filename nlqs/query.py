@@ -1,10 +1,11 @@
 import json
 import logging
-import chromadb
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Union
-from langchain_core.prompts import ChatPromptTemplate
+
+import chromadb
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAI
 
 # Create a logger object

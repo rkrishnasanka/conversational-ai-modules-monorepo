@@ -3,9 +3,10 @@ Used to convert the CSV file to a SQLite database table. This script is used in 
 the API to query the SQLite database.
 """
 
-import pandas as pd
-from pathlib import Path
 import sqlite3
+from pathlib import Path
+
+import pandas as pd
 
 # Constants for file paths and table names
 CSV_FILE = "product_descriptions.csv"

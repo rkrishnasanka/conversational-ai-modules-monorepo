@@ -1,14 +1,16 @@
-import os
 import json
+import logging
+import os
 import uuid
 from datetime import datetime
-from typing import List, Dict, Any
-from dotenv import load_dotenv
-from tot.tree_of_thoughts_executor import TreeOfThoughtsExecutor, ToTExecutorInputs
-import logging
+from typing import Any, Dict, List
 
-logging.basicConfig(filename='cannabis_bot.log', level=logging.INFO, 
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+from dotenv import load_dotenv
+
+from tot.tree_of_thoughts_executor import ToTExecutorInputs, TreeOfThoughtsExecutor
+
+logging.basicConfig(filename="cannabis_bot.log", level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
 
 class CannabisRecommendationBot:
     def __init__(self):
@@ -24,7 +26,7 @@ class CannabisRecommendationBot:
                 classification_prompt=self.get_classification_prompt(),
                 thought_generation_prompt=self.get_thought_generation_prompt(),
                 evaluation_prompt=self.get_evaluation_prompt(),
-                sample_csv_data=self.get_sample_data()
+                sample_csv_data=self.get_sample_data(),
             )
         )
         self.session_data = self.initialize_session_data()
@@ -34,16 +36,9 @@ class CannabisRecommendationBot:
         return {
             "session_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat(),
-            "user_context": {
-                "initial_query": {},
-                "interactions": [],
-                "final_summary": {}
-            },
-            "rag_analysis": {
-                "contextual_analysis": {},
-                "recommendations": {}
-            },
-            "cannabis_preferences": {}
+            "user_context": {"initial_query": {}, "interactions": [], "final_summary": {}},
+            "rag_analysis": {"contextual_analysis": {}, "recommendations": {}},
+            "cannabis_preferences": {},
         }
 
     def get_json_output_prompt(self) -> str:
@@ -142,61 +137,57 @@ class CannabisRecommendationBot:
 
     def process_user_input(self, user_input: str) -> str:
         if not self.session_data["user_context"]["initial_query"]:
-            self.session_data["user_context"]["initial_query"] = {
-                "text": user_input,
-                "intent": ""
-            }
-        
-        self.session_data["user_context"]["interactions"].append({
-            "user_input": user_input,
-            "timestamp": datetime.now().isoformat()
-        })
-        
+            self.session_data["user_context"]["initial_query"] = {"text": user_input, "intent": ""}
+
+        self.session_data["user_context"]["interactions"].append(
+            {"user_input": user_input, "timestamp": datetime.now().isoformat()}
+        )
+
         tot_input = f"User Query: {user_input}\nConversation History: {json.dumps(self.session_data)}\nAsked Questions: {json.dumps(list(self.asked_questions))}"
-        
+
         try:
             tot_output = self.executor.execute(user_query=tot_input, chat_history=[])
         except Exception as e:
             logging.error(f"Error occurred while executing Tree of Thoughts: {str(e)}")
             return "I'm sorry, but I'm having trouble processing your request right now. Could you please try again?"
 
-        if not tot_output or not isinstance(tot_output, dict) or 'response' not in tot_output:
+        if not tot_output or not isinstance(tot_output, dict) or "response" not in tot_output:
             logging.error(f"Invalid response received from Tree of Thoughts executor: {tot_output}")
             return "I apologize, but I received an invalid response. Could you please rephrase your question?"
 
         self.update_session_data(tot_output)
-        
+
         return self.format_response(tot_output)
 
     def update_session_data(self, tot_output: Dict[str, Any]):
         response = tot_output["response"]
         self.session_data["user_context"]["interactions"][-1]["bot_response"] = response
-        
+
         if response["type"] == "question":
             self.asked_questions.add(response["text"])
-        
+
         if response["type"] == "recommendation":
             self.session_data["user_context"]["final_summary"] = {
                 "text": tot_output["explanation"],
                 "key_insights": response.get("entities", []),
-                "recommendation": tot_output["recommendation"]
+                "recommendation": tot_output["recommendation"],
             }
-        
+
         self.session_data["rag_analysis"]["contextual_analysis"] = {
             "text": tot_output["contextual_analysis"],
             "entities": response.get("entities", []),
-            "relationships": tot_output["relationships"]
-        }        
+            "relationships": tot_output["relationships"],
+        }
         if tot_output.get("recommendation"):
             self.session_data["rag_analysis"]["recommendations"] = tot_output["recommendation"]
-        
+
         for entity in response.get("entities", []):
             if entity not in self.session_data["cannabis_preferences"]:
                 self.session_data["cannabis_preferences"][entity] = True
 
     def format_response(self, tot_output: Dict[str, Any]) -> str:
         response = tot_output["response"]
-        
+
         if response["type"] == "question":
             return self.format_question(response)
         elif response["type"] == "recommendation":
@@ -207,7 +198,7 @@ class CannabisRecommendationBot:
     def format_question(self, response: Dict[str, Any]) -> str:
         question = response["text"]
         options = response.get("options", [])
-        
+
         if options:
             options_str = "\n".join(f"{chr(97 + i)}. {opt}" for i, opt in enumerate(options))
             return f"{question}\n\n{options_str}"
@@ -221,7 +212,7 @@ class CannabisRecommendationBot:
 
         specific_products = recommendation.get("specific_products", [])
         if specific_products and isinstance(specific_products[0], dict):
-            specific_products_str = ", ".join(product.get('name', 'Unknown') for product in specific_products)
+            specific_products_str = ", ".join(product.get("name", "Unknown") for product in specific_products)
         else:
             specific_products_str = ", ".join(map(str, specific_products))
 
@@ -238,6 +229,7 @@ class CannabisRecommendationBot:
         Please note that this is a general recommendation. Always consult with a healthcare professional before starting any new cannabis regimen, and ensure you're aware of the legal status of cannabis products in your area.
         """
 
+
 def main():
     bot = CannabisRecommendationBot()
     print("Welcome to the Cannabis Recommendation Bot!")
@@ -251,20 +243,24 @@ def main():
             print_session_summary(bot.session_data)
             print("\nGoodbye!")
             break
-        
+
         response = bot.process_user_input(user_input)
         print(f"\nBot: {response}")
-        
+
         print("\nRAG Analysis:")
         print(json.dumps(bot.session_data["rag_analysis"], indent=4))
+
 
 def print_session_summary(session_data):
     summary = {
         "User Preferences": session_data.get("cannabis_preferences", {}),
-        "Final Recommendation": session_data.get("rag_analysis", {}).get("recommendations", "No recommendation provided"),
-        "Key Insights": session_data.get("user_context", {}).get("final_summary", {}).get("key_insights", [])
+        "Final Recommendation": session_data.get("rag_analysis", {}).get(
+            "recommendations", "No recommendation provided"
+        ),
+        "Key Insights": session_data.get("user_context", {}).get("final_summary", {}).get("key_insights", []),
     }
     print(json.dumps(summary, indent=2))
+
 
 if __name__ == "__main__":
     main()

@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-import pandas as pd
 from typing import List
+
+import pandas as pd
 
 
 class AbstractDriver(ABC):
-
     def __init__(self, config):
         raise NotImplementedError("This method must be implemented by the subclass")
 

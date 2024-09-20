@@ -1,7 +1,8 @@
-import pytest
 from unittest.mock import patch
+
 import pandas as pd
 import psycopg2
+import pytest
 from psycopg2 import sql
 
 

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 from tot.tree_of_thoughts import TreeOfThoughts
 
 

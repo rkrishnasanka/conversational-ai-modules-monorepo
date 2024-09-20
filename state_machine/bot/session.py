@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 def initialize_session_data() -> Dict[str, Any]:
@@ -13,16 +13,9 @@ def initialize_session_data() -> Dict[str, Any]:
     return {
         "session_id": str(uuid.uuid4()),
         "timestamp": datetime.now().isoformat(),
-        "user_context": {
-            "initial_query": {},
-            "interactions": [],
-            "final_summary": {}
-        },
-        "rag_analysis": {
-            "contextual_analysis": {},
-            "recommendations": {}
-        },
-        "cannabis_preferences": {}
+        "user_context": {"initial_query": {}, "interactions": [], "final_summary": {}},
+        "rag_analysis": {"contextual_analysis": {}, "recommendations": {}},
+        "cannabis_preferences": {},
     }
 
 

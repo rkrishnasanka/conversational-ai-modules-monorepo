@@ -1,10 +1,12 @@
-import re
 import logging
-import psycopg2
-import pandas as pd
-from psycopg2 import sql
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+import pandas as pd
+import psycopg2
+from psycopg2 import sql
+
 from nlqs.database.abstract_driver import AbstractDriver
 
 # Create a logger object

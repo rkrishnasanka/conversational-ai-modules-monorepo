@@ -4,8 +4,8 @@
 
 import csv
 import os
-from pathlib import Path
 import re
+from pathlib import Path
 
 import chromadb
 from langchain_openai import ChatOpenAI
@@ -95,7 +95,6 @@ def chat_benchmark(user_input, chat_history):
         return chat_history, response, log_data
 
     if summarized_input.user_requested_columns:
-
         quantitaive_data = summarized_input.quantitative_data
         qualitative_data = summarized_input.qualitative_data
 
