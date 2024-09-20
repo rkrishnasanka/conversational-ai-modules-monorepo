@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple, Union
 import chromadb
 from chromadb.config import Settings
 from langchain_chroma import Chroma
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
@@ -26,8 +26,7 @@ def query_template(
     previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
 ):
     messages = [
-        (
-            "system",
+        SystemMessage(
             """Act as: A consultant and subject matter expert educating, by the provided context, on the topic of Evidence-based Medical Cannabis. 
         
         The material sourced for the output script should prioritize primary resources and sources of information of the highest academic quality, including meta-analyses, randomized controlled trials, and other high-quality clinical-trial data, reviews, and publications. Published, peer-reviewed data should be prioritized over expert opinion, and non-published information and/or non-expert opinions should be disregarded when mining for source materials.
@@ -61,7 +60,7 @@ def query_template(
 
         Other Notes: Avoid self-referencing or mentioning "I," "we," or "AI" in the output. Directly provide the information without referencing the speaker. If you receive any links in the input, please highlight them in the output.""",
         ),
-        ("user", "{context} and retrived data: {retrieved_data}"),
+        HumanMessage("{context}"),
     ]
 
     # TODO: Loop through previous messages and add them to the template based on AI or Human
@@ -136,7 +135,6 @@ class Chatbot:
     def converse(
         self,
         user_input: str,
-        retrieved_data,
         previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
     ) -> Tuple[str, List[ChatReference]]:
         """Converse with the chatbot
@@ -165,7 +163,7 @@ class Chatbot:
 
         retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-        result = retrieval_chain.invoke({"input": user_input, "retrieved_data": retrieved_data})
+        result = retrieval_chain.invoke({"input": user_input})
         print("Result from qachain:")
         print(result)
         refernces_list = []
