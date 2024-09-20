@@ -2,8 +2,6 @@ import re
 from typing import List, Optional, Tuple, Union
 import chromadb
 from chromadb.config import Settings
-
-# from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -17,14 +15,14 @@ from expert_system.parameters import (
     VECTORDB_PORT,
     VECTORDB_USERNAME,
 )
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
 
 def query_template(
-    user_input: str,
-    retrieved_data,
     previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
 ):
     messages = [
@@ -128,15 +126,12 @@ class Chatbot:
         """Initializes the QA Chain"""
 
         self.llm = ChatOpenAI(
-            api_key=SecretStr(OPENAI_API_KEY), temperature=0.1, model="gpt-4", verbose=True, max_tokens=1500
+            api_key=SecretStr(OPENAI_API_KEY),
+            temperature=0.1,
+            model="gpt-4",
+            verbose=True,
+            max_tokens=1500,
         )
-
-        # self.qachain = RetrievalQA.from_chain_type(
-        #     llm=llm,
-        #     chain_type="stuff",
-        #     retriever=self.vectordb.as_retriever(),
-        #     return_source_documents=True,
-        # )
 
     def converse(
         self,
@@ -156,11 +151,8 @@ class Chatbot:
         if previous_messages is None:
             previous_messages = []
         previous_messages.append(HumanMessage(content=user_input))
-        updated_retrieved_data = re.sub("{|}", "", str(retrieved_data))
 
         prompt = query_template(
-            user_input=user_input,
-            retrieved_data=updated_retrieved_data,
             previous_messages=previous_messages,
         )
 

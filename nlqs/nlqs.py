@@ -200,8 +200,14 @@ class NLQS:
                 qualitative_data = summarized_input.qualitative_data
 
                 quantitaive_query = generate_quantitaive_serach_query(quantitaive_data, self.table_name, primary_key)
-                quantitative_ids_uncleaned = driver.execute_query(quantitaive_query)
+                if quantitaive_query == "":
+                    quantitative_ids_uncleaned = None
+                else:
+                    quantitative_ids_uncleaned = driver.execute_query(quantitaive_query)
 
+                if quantitative_ids_uncleaned is None:
+                    quantitative_ids_uncleaned = []
+                
                 quantitative_ids = [item[0] for item in quantitative_ids_uncleaned]
                 print(f"quantitative_ids: {quantitative_ids}")
 
@@ -246,12 +252,13 @@ class NLQS:
                 uris = []
 
                 # Process the retrieved data
-                for row in data_retreived:
-                    record = dict(zip(columns_to_use, row))
-                    if uri_column in record:
-                        uris.append(str(record[uri_column]))
-                        del record[uri_column]  # Remove the URI column data from the record
-                    records.append(record)
+                if data_retreived is not None:
+                    for row in data_retreived:
+                        record = dict(zip(columns_to_use, row))
+                        if uri_column in record:
+                            uris.append(str(record[uri_column]))
+                            del record[uri_column]  # Remove the URI column data from the record
+                        records.append(record)
 
                 # Create the result object
                 result = NLQSResult(records=records, uris=uris)

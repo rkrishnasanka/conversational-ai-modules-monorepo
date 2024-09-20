@@ -120,60 +120,49 @@ def store_descriptions_in_db(
         db_driver (Union[SQLiteDriver, PostgresDriver]): Database driver.
     """
 
-    conn = db_driver._db_connection
-    if conn is None:
-        raise ValueError("Database connection not established.")
-
-    c = conn.cursor()
-
     # Create table for column descriptions
-    c.execute(
+    db_driver.execute_query(
         """
         CREATE TABLE IF NOT EXISTS column_descriptions (
             column_name TEXT PRIMARY KEY,
             description TEXT
         )
-    """
+        """
     )
 
     for column, description in descriptions.items():
-        c.execute(
-            """
+        db_driver.execute_query(
+            f"""
             INSERT OR REPLACE INTO column_descriptions (column_name, description)
-            VALUES (?, ?)
-        """,
-            (column, description),
+            VALUES ({column}, {description})
+            """
         )
 
     # Create table for numerical and categorical columns
-    c.execute(
+    db_driver.execute_query(
         """
         CREATE TABLE IF NOT EXISTS column_types (
             column_name TEXT PRIMARY KEY,
             column_type TEXT
         )
-    """
+        """
     )
 
     for column in numerical_columns:
-        c.execute(
-            """
+        db_driver.execute_query(
+            f"""
             INSERT OR REPLACE INTO column_types (column_name, column_type)
-            VALUES (?, ?)
-        """,
-            (column, "numerical"),
+            VALUES ({column}, "numerical")
+            """
         )
 
     for column in categorical_columns:
-        c.execute(
-            """
+        db_driver.execute_query(
+            f"""
             INSERT OR REPLACE INTO column_types (column_name, column_type)
-            VALUES (?, ?)
-        """,
-            (column, "categorical"),
+            VALUES ({column}, "categorical")
+            """
         )
-
-    conn.commit()
 
 
 def get_chroma_collection(
