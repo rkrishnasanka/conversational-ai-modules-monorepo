@@ -18,9 +18,6 @@ from expert_system.parameters import (
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-
 
 def query_template(
     previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
