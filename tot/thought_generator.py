@@ -3,12 +3,13 @@ from typing import List, Literal, LiteralString, Optional
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 
+
 class ThoughtGenerator:
     def __init__(self, api_key: str, thought_generation_prompt: Optional[str] = None):
         """ThoughtGenerator class for generating thoughts for problem-solving.
 
         Args:
-            api_key (str): 
+            api_key (str):
             thought_generation_prompt (Optional[str], optional): _description_. Defaults to None.
         """
         self.api_key = api_key
@@ -18,7 +19,7 @@ class ThoughtGenerator:
     @staticmethod
     def default_thought_generation_prompt() -> LiteralString:
         """Return the default thought generation prompt for the thought generator."""
-        
+
         return """
         Given the current state of the problem:
 
@@ -46,28 +47,27 @@ class ThoughtGenerator:
         Returns:
             List[str]: A list of generated thoughts.
         """
-        prompt = self.thought_generation_prompt.format(
-            current_state=current_state,
-            num_thoughts=num_thoughts
-        )
-        
+        prompt = self.thought_generation_prompt.format(current_state=current_state, num_thoughts=num_thoughts)
+
         messages = [
-            ChatCompletionSystemMessageParam(role="system", content="You are a helpful assistant generating thoughts for problem-solving."),
-            ChatCompletionUserMessageParam(role="user", content=prompt)
+            ChatCompletionSystemMessageParam(
+                role="system", content="You are a helpful assistant generating thoughts for problem-solving."
+            ),
+            ChatCompletionUserMessageParam(role="user", content=prompt),
         ]
-        
+
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=messages,
             # max_tokens=100,
             n=1,
-            temperature=0.7
+            temperature=0.7,
         )
 
         thoughts_text = response.choices[0].message.content
         if thoughts_text is not None:
             thoughts_text = thoughts_text.strip()
-            thoughts = [thought.split('. ', 1)[1] for thought in thoughts_text.split('\n') if '. ' in thought]
+            thoughts = [thought.split(". ", 1)[1] for thought in thoughts_text.split("\n") if ". " in thought]
             return thoughts[:num_thoughts]
         else:
             raise Exception("No thoughts generated.")

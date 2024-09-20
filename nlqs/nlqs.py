@@ -209,12 +209,14 @@ class NLQS:
                 print(f"qualitative_ids: {qualitative_ids}")
 
                 # Find the intersection of quantitative_ids and qualitative_ids
-                if not quantitative_ids:
-                    intersection_ids = qualitative_ids
-                elif not qualitative_ids:
-                    intersection_ids = quantitative_ids
+                if not quantitative_ids or not qualitative_ids:
+                    intersection_ids = quantitative_ids or qualitative_ids
                 else:
                     intersection_ids = list(set(quantitative_ids) & set(qualitative_ids))
+
+                # Ensure intersection_ids is set to qualitative_ids if it's empty
+                if not intersection_ids:
+                    intersection_ids = qualitative_ids
 
                 print(intersection_ids)
 
