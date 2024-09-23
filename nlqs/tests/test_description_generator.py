@@ -1,11 +1,12 @@
 from pathlib import Path
+
 import chromadb
+
 from nlqs.database.sqlite import SQLiteConnectionConfig
 from nlqs.description_generator import get_chroma_collection
 
 
 def test_get_chroma_collection(sqlite_driver):
-
     chroma_client = chromadb.PersistentClient()
 
     db_driver = sqlite_driver

@@ -5,6 +5,7 @@ And this could be greatful while testing the bot.
 """
 
 from pathlib import Path
+
 import gradio as gr
 
 from nlqs.database.sqlite import SQLiteConnectionConfig

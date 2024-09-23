@@ -1,21 +1,22 @@
 import logging
-import chromadb
-from nlqs.database.postgres import PostgresDriver, PostgresConnectionConfig
-from nlqs.database.sqlite import SQLiteDriver, SQLiteConnectionConfig
 import re
-from typing import Any, Dict, List, Tuple, Union
-from nlqs.description_generator import generate_column_description, get_chroma_collection
-from nlqs.query import (
-    generate_quantitaive_serach_query,
-    qualitative_search,
-    summarize,
-)
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
+
+import chromadb
 from langchain_openai import ChatOpenAI
 from pydantic.v1 import SecretStr
-from nlqs.parameters import OPENAI_API_KEY
+
 from discord_bot.parameters import LOGGER_FILE
+from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
+from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
+from nlqs.description_generator import (
+    generate_column_description,
+    get_chroma_collection,
+)
+from nlqs.parameters import OPENAI_API_KEY
+from nlqs.query import generate_quantitaive_serach_query, qualitative_search, summarize
 
 # Create a logger object
 logger = logging.getLogger(__name__)
@@ -52,7 +53,6 @@ class NLQSResult:
 
 
 class NLQS:
-
     def __init__(
         self, connection_config: Union[SQLiteConnectionConfig, PostgresConnectionConfig], chroma_config: ChromaDBConfig
     ) -> None:
@@ -98,9 +98,11 @@ class NLQS:
                 df=self.connection_driver.fetch_data_from_database(table_name=self.table_name),
                 db_driver=self.connection_driver,
             )
-            column_descriptions, numerical_columns, categorical_columns = (
-                driver.retrieve_descriptions_and_types_from_db()
-            )
+            (
+                column_descriptions,
+                numerical_columns,
+                categorical_columns,
+            ) = driver.retrieve_descriptions_and_types_from_db()
 
         return column_descriptions, numerical_columns, categorical_columns
 
@@ -195,26 +197,30 @@ class NLQS:
         else:
             print("checking for user requested columns...")
             if summarized_input.user_requested_columns:
-
                 quantitaive_data = summarized_input.quantitative_data
                 qualitative_data = summarized_input.qualitative_data
 
                 quantitaive_query = generate_quantitaive_serach_query(quantitaive_data, self.table_name, primary_key)
                 quantitative_ids_uncleaned = driver.execute_query(quantitaive_query)
 
-                quantitative_ids = [item[0] for item in quantitative_ids_uncleaned]
-                print(f"quantitative_ids: {quantitative_ids}")
+                quantitative_ids = []
+
+                if quantitative_ids_uncleaned:
+                    quantitative_ids = [item[0] for item in quantitative_ids_uncleaned]
+                    print(f"quantitative_ids: {quantitative_ids}")
 
                 qualitative_ids = qualitative_search(chroma_collections, qualitative_data, primary_key)
                 print(f"qualitative_ids: {qualitative_ids}")
 
                 # Find the intersection of quantitative_ids and qualitative_ids
-                if not quantitative_ids:
-                    intersection_ids = qualitative_ids
-                elif not qualitative_ids:
-                    intersection_ids = quantitative_ids
+                if not quantitative_ids or not qualitative_ids:
+                    intersection_ids = quantitative_ids or qualitative_ids
                 else:
                     intersection_ids = list(set(quantitative_ids) & set(qualitative_ids))
+
+                # Ensure intersection_ids is set to qualitative_ids if it's empty
+                if not intersection_ids:
+                    intersection_ids = qualitative_ids
 
                 print(intersection_ids)
 
@@ -242,6 +248,10 @@ class NLQS:
                 # Initialize lists to hold records and URIs
                 records = []
                 uris = []
+
+                if not data_retreived:
+                    result = NLQSResult(records=[], uris=[])
+                    return result
 
                 # Process the retrieved data
                 for row in data_retreived:

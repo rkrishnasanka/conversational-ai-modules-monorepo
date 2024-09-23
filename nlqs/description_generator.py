@@ -1,15 +1,17 @@
+import re
 from typing import Dict, List, Optional, Union
+
 import chromadb
+import pandas as pd
 from langchain.chains import LLMChain
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic.v1 import SecretStr
-import re
-from langchain_core.output_parsers import StrOutputParser
-from nlqs.parameters import OPENAI_API_KEY
-from nlqs.database.sqlite import SQLiteDriver
+
 from nlqs.database.postgres import PostgresDriver
-import pandas as pd
+from nlqs.database.sqlite import SQLiteDriver
+from nlqs.parameters import OPENAI_API_KEY
 
 
 # 1. pass the data in the databse
@@ -120,60 +122,49 @@ def store_descriptions_in_db(
         db_driver (Union[SQLiteDriver, PostgresDriver]): Database driver.
     """
 
-    conn = db_driver._db_connection
-    if conn is None:
-        raise ValueError("Database connection not established.")
-
-    c = conn.cursor()
-
     # Create table for column descriptions
-    c.execute(
+    db_driver.execute_query(
         """
         CREATE TABLE IF NOT EXISTS column_descriptions (
             column_name TEXT PRIMARY KEY,
             description TEXT
         )
-    """
+        """
     )
 
     for column, description in descriptions.items():
-        c.execute(
-            """
+        db_driver.execute_query(
+            f"""
             INSERT OR REPLACE INTO column_descriptions (column_name, description)
-            VALUES (?, ?)
-        """,
-            (column, description),
+            VALUES ({column}, {description})
+            """
         )
 
     # Create table for numerical and categorical columns
-    c.execute(
+    db_driver.execute_query(
         """
         CREATE TABLE IF NOT EXISTS column_types (
             column_name TEXT PRIMARY KEY,
             column_type TEXT
         )
-    """
+        """
     )
 
     for column in numerical_columns:
-        c.execute(
-            """
+        db_driver.execute_query(
+            f"""
             INSERT OR REPLACE INTO column_types (column_name, column_type)
-            VALUES (?, ?)
-        """,
-            (column, "numerical"),
+            VALUES ({column}, "numerical")
+            """
         )
 
     for column in categorical_columns:
-        c.execute(
-            """
+        db_driver.execute_query(
+            f"""
             INSERT OR REPLACE INTO column_types (column_name, column_type)
-            VALUES (?, ?)
-        """,
-            (column, "categorical"),
+            VALUES ({column}, "categorical")
+            """
         )
-
-    conn.commit()
 
 
 def get_chroma_collection(

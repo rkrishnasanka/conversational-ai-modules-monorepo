@@ -1,5 +1,5 @@
-from pathlib import Path
 import sqlite3
+from pathlib import Path
 from typing import Dict, List, Optional
 
 import chromadb
@@ -44,9 +44,10 @@ def generate_quantitaive_serach_query(quantitaive_data: Dict[str, str], table_na
 
     # Combine the query parts with AND
     query_constraints = " AND ".join(query_parts)
-    
+
     query = f"select {primary_key} from {table_name} where {query_constraints}"
     return query
+
 
 def execute_query(query: str) -> List[str]:
     """Executes the SQL query and returns the result.
@@ -74,7 +75,8 @@ def execute_query(query: str) -> List[str]:
         # logger.error(error_message)
         raise e
         # return []
-    
+
+
 def get_chroma_collection(
     collection_name: str,
     client,
@@ -135,6 +137,7 @@ def get_chroma_collection(
         chroma_collection = client.get_collection(collection_name)
     return chroma_collection
 
+
 def qualitaive_search(collection: chromadb.Collection, data: Dict[str, str]) -> List[str]:
     """Performs a similarity search on the database and returns all similar results.
 
@@ -169,7 +172,6 @@ quantitative_ids = [item[0] for item in quantitative_ids_uncleaned]
 print(f"quantitative_ids: {quantitative_ids}")
 
 
-
 chroma_client = chromadb.PersistentClient()
 
 sqlite_config = SQLiteConnectionConfig(db_file=Path("aegion.db"), dataset_table_name="new_dataset")
@@ -181,7 +183,10 @@ connection_driver.connect()
 collections = get_chroma_collection("aegion", chroma_client, connection_driver, "id")
 
 
-qualitative_data= {'Product': 'Puffco Peak Pro', 'MedicalBenefitsReported': 'User is asking about the medical benefits.'}
+qualitative_data = {
+    "Product": "Puffco Peak Pro",
+    "MedicalBenefitsReported": "User is asking about the medical benefits.",
+}
 
 results = qualitaive_search(collections, qualitative_data)
 

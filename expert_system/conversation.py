@@ -1,14 +1,14 @@
-import re
 from typing import List, Optional, Tuple, Union
 import chromadb
 from chromadb.config import Settings
-
-# from langchain.chains import RetrievalQA
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
+
 from expert_system.chat_reference import ChatReference
 from expert_system.parameters import (
     OPENAI_API_KEY,
@@ -18,13 +18,8 @@ from expert_system.parameters import (
     VECTORDB_USERNAME,
 )
 
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-
 
 def query_template(
-    user_input: str,
-    retrieved_data,
     previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
 ):
     messages = [
@@ -63,7 +58,7 @@ def query_template(
 
         Other Notes: Avoid self-referencing or mentioning "I," "we," or "AI" in the output. Directly provide the information without referencing the speaker. If you receive any links in the input, please highlight them in the output.""",
         ),
-        ("user", "{context} and retrived data: {retrieved_data}"),
+        ("user", "{context}"),
     ]
 
     # TODO: Loop through previous messages and add them to the template based on AI or Human
@@ -128,20 +123,16 @@ class Chatbot:
         """Initializes the QA Chain"""
 
         self.llm = ChatOpenAI(
-            api_key=SecretStr(OPENAI_API_KEY), temperature=0.1, model="gpt-4", verbose=True, max_tokens=1500
+            api_key=SecretStr(OPENAI_API_KEY),
+            temperature=0.1,
+            model="gpt-4",
+            verbose=True,
+            max_tokens=1500,
         )
-
-        # self.qachain = RetrievalQA.from_chain_type(
-        #     llm=llm,
-        #     chain_type="stuff",
-        #     retriever=self.vectordb.as_retriever(),
-        #     return_source_documents=True,
-        # )
 
     def converse(
         self,
         user_input: str,
-        retrieved_data,
         previous_messages: Optional[List[Union[HumanMessage, AIMessage]]] = None,
     ) -> Tuple[str, List[ChatReference]]:
         """Converse with the chatbot
@@ -156,11 +147,8 @@ class Chatbot:
         if previous_messages is None:
             previous_messages = []
         previous_messages.append(HumanMessage(content=user_input))
-        updated_retrieved_data = re.sub("{|}", "", str(retrieved_data))
 
         prompt = query_template(
-            user_input=user_input,
-            retrieved_data=updated_retrieved_data,
             previous_messages=previous_messages,
         )
 
@@ -173,7 +161,7 @@ class Chatbot:
 
         retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-        result = retrieval_chain.invoke({"input": user_input, "retrieved_data": retrieved_data})
+        result = retrieval_chain.invoke({"input": user_input})
         print("Result from qachain:")
         print(result)
         refernces_list = []
