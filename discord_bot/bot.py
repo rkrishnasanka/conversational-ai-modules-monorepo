@@ -143,9 +143,7 @@ def create_bot() -> commands.Bot:
                 corrected_chat_history = change_chat_history(chat_history)
                 print(f"corrected chat history: {corrected_chat_history}")
 
-                reply = chatbot_instance.converse(
-                    user_input=user_input, retrieved_data=queried_data, previous_messages=corrected_chat_history
-                )
+                reply = chatbot_instance.converse(user_input=user_input, previous_messages=corrected_chat_history)
                 chat_history.append((user_input, reply[0]))
                 reply = f"<@{user_id}> " + reply[0]
 

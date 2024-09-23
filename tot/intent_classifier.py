@@ -9,7 +9,6 @@ from openai.types.chat.chat_completion_user_message_param import (
 )
 
 
-
 class IntentClassifier:
     def __init__(self, api_key: str, classification_prompt: Optional[str] = None):
         """
