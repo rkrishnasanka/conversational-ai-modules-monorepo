@@ -1,0 +1,34 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ricardochaves/python-lint@v1.4.0
+        with:
+          python-root-list: "expert_system nlqs state_machine tot"
+          use-pylint: true
+          use-black: true
+          use-mypy: true
+          use-isort: true
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.11]
+        poetry-version: [1.7.1]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Run image
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
+      - name: Install dependencies
+        run: poetry install
+      - name: Run tests
+        run: poetry run pytest 
