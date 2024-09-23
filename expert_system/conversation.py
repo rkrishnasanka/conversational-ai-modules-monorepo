@@ -8,7 +8,6 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic.v1 import SecretStr
-
 from expert_system.chat_reference import ChatReference
 from expert_system.parameters import (
     OPENAI_API_KEY,
