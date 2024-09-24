@@ -93,16 +93,18 @@ class NLQS:
         column_descriptions, numerical_columns, categorical_columns = driver.retrieve_descriptions_and_types_from_db()
 
         if column_descriptions == {}:
+
+            raise ValueError("No data found in the database. Generate Column descriptions.")
             # Step 2
-            generate_column_description(
-                df=self.connection_driver.fetch_data_from_database(table_name=self.table_name),
-                db_driver=self.connection_driver,
-            )
-            (
-                column_descriptions,
-                numerical_columns,
-                categorical_columns,
-            ) = driver.retrieve_descriptions_and_types_from_db()
+        #     generate_column_description(
+        #         df=self.connection_driver.fetch_data_from_database(table_name=self.table_name),
+        #         db_driver=self.connection_driver,
+        #     )
+        #     (
+        #         column_descriptions,
+        #         numerical_columns,
+        #         categorical_columns,
+        #     ) = driver.retrieve_descriptions_and_types_from_db()
 
         return column_descriptions, numerical_columns, categorical_columns
 

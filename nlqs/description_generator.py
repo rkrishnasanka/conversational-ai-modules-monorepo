@@ -191,47 +191,50 @@ def get_chroma_collection(
         print(f"Collection '{collection_name}' already exists, getting existing collection...")
         chroma_collection = client.get_collection(collection_name)
     else:
-        print(f"Collection '{collection_name}' does not exists, Creating new collection...")
-        collection = client.create_collection(collection_name)
+        print(f"Collection '{collection_name}' does not exists, Creating a collection...")
 
-        data = db_driver.fetch_data_from_database(db_driver.db_config.dataset_table_name)
+        raise ValueError("Chroma collection doesn't exist. Create a chroma collection!!")
 
-        categorical_columns = data.select_dtypes(include=["object"]).columns.tolist()
+        # collection = client.create_collection(collection_name)
 
-        if data is None:
-            raise ValueError("No data found in the database.")
+        # data = db_driver.fetch_data_from_database(db_driver.db_config.dataset_table_name)
 
-        if not primary_key:
-            primary_key = data.columns[0]
+        # categorical_columns = data.select_dtypes(include=["object"]).columns.tolist()
 
-        for index, row in data.iterrows():
-            # Extract the primary key value
-            pri_key = str(row[primary_key])
+        # if data is None:
+        #     raise ValueError("No data found in the database.")
 
-            for column in categorical_columns:
-                # Extract the text for the current column and row
-                text = [str(row[column])]
+        # if not primary_key:
+        #     primary_key = data.columns[0]
 
-                # Create the ID for the current column and row
-                id = f"{column}_{pri_key}"
+        # for index, row in data.iterrows():
+        #     # Extract the primary key value
+        #     pri_key = str(row[primary_key])
 
-                print(f"id: {id}")
+        #     for column in categorical_columns:
+        #         # Extract the text for the current column and row
+        #         text = [str(row[column])]
 
-                # Create the metadata dictionary
-                meta = {
-                    "id": pri_key,
-                    "table_name": db_driver.db_config.dataset_table_name,
-                    "column_name": column,
-                }
+        #         # Create the ID for the current column and row
+        #         id = f"{column}_{pri_key}"
 
-                # Add the data to the Chroma collection
-                chroma_collection = collection.add(
-                    documents=text,
-                    ids=id,
-                    metadatas=meta,
-                )
+        #         print(f"id: {id}")
 
-        chroma_collection = client.get_collection(collection_name)
+        #         # Create the metadata dictionary
+        #         meta = {
+        #             "id": pri_key,
+        #             "table_name": db_driver.db_config.dataset_table_name,
+        #             "column_name": column,
+        #         }
+
+        #         # Add the data to the Chroma collection
+        #         chroma_collection = collection.add(
+        #             documents=text,
+        #             ids=id,
+        #             metadatas=meta,
+        #         )
+
+        # chroma_collection = client.get_collection(collection_name)
     return chroma_collection
 
 
