@@ -86,7 +86,7 @@ class NLQS:
         # TODO - Figure out if we need to create introspection table, and create
         pass
 
-    def _create_introspection_table(self):
+    def _retrieve_column_info(self):
         driver = self.connection_driver
 
         # Step 1
@@ -142,7 +142,7 @@ class NLQS:
         # Database Connection
         driver = self.connection_driver
 
-        column_descriptions, numerical_columns, categorical_columns = self._create_introspection_table()
+        column_descriptions, numerical_columns, categorical_columns = self._retrieve_column_info()
 
         primary_key = driver.get_primary_key(self.table_name)
 
