@@ -1,17 +1,30 @@
 import re
 from typing import Dict, List, Optional, Union
-
-import chromadb
 import pandas as pd
 from langchain.chains import LLMChain
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from pydantic.v1 import SecretStr
-
+from pathlib import Path
 from nlqs.database.postgres import PostgresDriver
 from nlqs.database.sqlite import SQLiteDriver
 from nlqs.parameters import OPENAI_API_KEY
+from nlqs.database.postgres import PostgresConnectionConfig
+from nlqs.database.sqlite import SQLiteConnectionConfig
+from discord_bot.parameters import (
+    CHROMA_COLLECTION_NAME,
+    OUTPUT_COLUMNS,
+    SQL_TABLE_NAME,
+    SQLITE_DB_FILE,
+    SQL_TABLE_NAME,
+    SUPABASE_DATABASE_NAME,
+    SUPABASE_HOST,
+    SUPABASE_PASSWORD,
+    SUPABASE_PORT,
+    SUPABASE_USER,
+    URL_COLUMN,
+)
 
 
 # 1. pass the data in the databse
@@ -167,72 +180,60 @@ def store_descriptions_in_db(
         )
 
 
-def get_chroma_collection(
-    collection_name: str,
-    client,
-    db_driver: Union[SQLiteDriver, PostgresDriver],
-    primary_key: Optional[str],
-) -> chromadb.Collection:
-    """Gets the chroma collection.
+def generate_column_description(df: pd.DataFrame, db_driver: Union[SQLiteDriver, PostgresDriver]):
+    """Generates and stores column descriptions in the database.
 
     Args:
-        collection_name (str): Name of the collection.
-        client (chromadb.Client): Chroma client.
+        df (pd.DataFrame): data in the database converted into a pandas dataframe.
         db_driver (Union[SQLiteDriver, PostgresDriver]): Database driver.
-        primary_key (Optional[str]): Primary key column name.
-
-    Returns:
-        Chroma: Chroma collection.
     """
 
-    collections = [col.name for col in client.list_collections()]
+    # Get column descriptions
+    column_descriptions = get_column_descriptions(dataframe=df)
 
-    if collection_name in collections:
-        print(f"Collection '{collection_name}' already exists, getting existing collection...")
-        chroma_collection = client.get_collection(collection_name)
-    else:
-        print(f"Collection '{collection_name}' does not exists, Creating a collection...")
+    # Identify numerical and categorical columns
+    numerical_columns = df.select_dtypes(include=["int64", "float64"]).columns.tolist()
+    categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
-        raise ValueError("Chroma collection doesn't exist. Create a chroma collection!!")
+    # Store descriptions and column types in the database
+    store_descriptions_in_db(
+        descriptions=column_descriptions,
+        numerical_columns=numerical_columns,
+        categorical_columns=categorical_columns,
+        db_driver=db_driver,
+    )
 
-        # collection = client.create_collection(collection_name)
+    print(column_descriptions)
+    print("Column descriptions and column types stored in the database.")
 
-        # data = db_driver.fetch_data_from_database(db_driver.db_config.dataset_table_name)
 
-        # categorical_columns = data.select_dtypes(include=["object"]).columns.tolist()
+if __name__ == "__main__":
+    # SQLite configuration
+    connection_config = SQLiteConnectionConfig(
+        db_file=Path(SQLITE_DB_FILE), dataset_table_name=SQL_TABLE_NAME, uri_column="URL", output_columns=OUTPUT_COLUMNS
+    )
 
-        # if data is None:
-        #     raise ValueError("No data found in the database.")
+    # Postgres configuration
+    connection_config = PostgresConnectionConfig(
+        host=SUPABASE_HOST,
+        port=int(SUPABASE_PORT),
+        user=SUPABASE_USER,
+        password=SUPABASE_PASSWORD,
+        database_name=SUPABASE_DATABASE_NAME,
+        dataset_table_name=SQL_TABLE_NAME,
+        uri_column=URL_COLUMN,
+    )
 
-        # if not primary_key:
-        #     primary_key = data.columns[0]
+    connection_driver = None
 
-        # for index, row in data.iterrows():
-        #     # Extract the primary key value
-        #     pri_key = str(row[primary_key])
+    if isinstance(connection_config, SQLiteConnectionConfig):
+        connection_driver = SQLiteDriver(connection_config)
+    elif isinstance(connection_config, PostgresConnectionConfig):
+        connection_driver = PostgresDriver(connection_config)
+    elif connection_driver is None:
+        raise ValueError("Initialize or enter connection config..")
 
-        #     for column in categorical_columns:
-        #         # Extract the text for the current column and row
-        #         text = [str(row[column])]
+    connection_driver.connect()
 
-        #         # Create the ID for the current column and row
-        #         id = f"{column}_{pri_key}"
-
-        #         print(f"id: {id}")
-
-        #         # Create the metadata dictionary
-        #         meta = {
-        #             "id": pri_key,
-        #             "table_name": db_driver.db_config.dataset_table_name,
-        #             "column_name": column,
-        #         }
-
-        #         # Add the data to the Chroma collection
-        #         chroma_collection = collection.add(
-        #             documents=text,
-        #             ids=id,
-        #             metadatas=meta,
-        #         )
-
-        # chroma_collection = client.get_collection(collection_name)
-    return chroma_collection
+    df = connection_driver.fetch_data_from_database(table_name=connection_config.dataset_table_name)
+    generate_column_description(df, connection_driver)

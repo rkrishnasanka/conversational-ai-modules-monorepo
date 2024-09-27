@@ -11,10 +11,7 @@ from pydantic.v1 import SecretStr
 from discord_bot.parameters import LOGGER_FILE
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
-from nlqs.description_generator import (
-    generate_column_description,
-    get_chroma_collection,
-)
+from nlqs.description_generator import get_chroma_collection
 from nlqs.parameters import OPENAI_API_KEY
 from nlqs.query import generate_quantitaive_serach_query, qualitative_search, summarize
 
