@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List, Tuple
 
 import pandas as pd
+from regex import D
 
 
 class AbstractDriver(ABC):
@@ -21,7 +22,7 @@ class AbstractDriver(ABC):
         raise NotImplementedError("This method must be implemented by the subclass")
 
     @abstractmethod
-    def retrieve_descriptions_and_types_from_db(self):
+    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str],  List[str],  List[str]]:
         raise NotImplementedError("This method must be implemented by the subclass")
 
     @abstractmethod

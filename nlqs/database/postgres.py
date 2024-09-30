@@ -104,7 +104,7 @@ class PostgresDriver(AbstractDriver):
             logger.error(error_message)
             raise e
 
-    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str], List[str]]:
+    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str], List[str], List[str]]:
         """Retrieves descriptions and types from the PostgreSQL database.
 
         Args:
@@ -123,17 +123,18 @@ class PostgresDriver(AbstractDriver):
             descriptions = {row[0]: row[1] for row in description_rows}
 
             # Retrieve column types
-            self.cursor.execute("SELECT column_name, column_type FROM column_types")
+            self.cursor.execute("SELECT column_name, column_type FROM column_metadata")
             type_rows = self.cursor.fetchall()
             numerical_columns = [row[0] for row in type_rows if row[1] == "numerical"]
             categorical_columns = [row[0] for row in type_rows if row[1] == "categorical"]
+            descriptive_columns = [row[0] for row in type_rows if row[1] == "descriptive"]
 
-            return descriptions, numerical_columns, categorical_columns
+            return descriptions, numerical_columns, categorical_columns, descriptive_columns
         except psycopg2.Error as e:
             logger.error(f"Error retrieving descriptions and types: {e}")
             # roll back the failed sql query
             self._db_connection.rollback()
-            return {}, [], []
+            return {}, [], [], []
 
     def get_database_columns(self, table_name: str) -> List[str]:
         """Returns the columns in the specified table in the order they appear in the database.

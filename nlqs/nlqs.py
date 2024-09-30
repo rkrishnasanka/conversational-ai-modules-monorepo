@@ -8,7 +8,6 @@ import chromadb
 from langchain_openai import ChatOpenAI
 from pydantic.v1 import SecretStr
 
-from discord_bot.parameters import LOGGER_FILE
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 from nlqs.description_generator import get_chroma_collection
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Create a file handler to save logs
-file_handler = logging.FileHandler(LOGGER_FILE)
+file_handler = logging.FileHandler(__file__)
 
 # Create a formatter to format the log messages
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
@@ -83,29 +82,6 @@ class NLQS:
         # TODO - Figure out if we need to create introspection table, and create
         pass
 
-    def _retrieve_column_info(self):
-        driver = self.connection_driver
-
-        # Step 1
-        column_descriptions, numerical_columns, categorical_columns, descriptive_columns = (
-            driver.retrieve_descriptions_and_types_from_db()
-        )
-
-        if column_descriptions == {}:
-
-            raise ValueError("No data found in the database. Generate Column descriptions.")
-            # Step 2
-        #     generate_column_description(
-        #         df=self.connection_driver.fetch_data_from_database(table_name=self.table_name),
-        #         db_driver=self.connection_driver,
-        #     )
-        #     (
-        #         column_descriptions,
-        #         numerical_columns,
-        #         categorical_columns,
-        #     ) = driver.retrieve_descriptions_and_types_from_db()
-
-        return column_descriptions, numerical_columns, categorical_columns
 
     # Step 4
     def execute_nlqs_workflow(self, user_input: str, chat_history: List[Tuple[str, str]]) -> NLQSResult:
@@ -141,7 +117,12 @@ class NLQS:
         # Database Connection
         driver = self.connection_driver
 
-        column_descriptions, numerical_columns, categorical_columns = self._retrieve_column_info()
+        column_descriptions, numerical_columns, categorical_columns, descriptive_columns = (
+            driver.retrieve_descriptions_and_types_from_db()
+        )
+
+        if column_descriptions == {}:
+            raise ValueError("No data found in the database. Generate Column descriptions.")
 
         primary_key = driver.get_primary_key(self.table_name)
 
