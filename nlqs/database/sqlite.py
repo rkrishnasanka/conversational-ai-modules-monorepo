@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import Result, create_engine, text
 from sqlalchemy.engine.row import Row
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
@@ -51,28 +51,19 @@ class SQLiteDriver(AbstractDriver):
         # There's no need to explicitly close the engine
         logger.info("Disconnected from SQLite database.")
 
-    def execute_query(self, query: str) -> Optional[Sequence[Row[Any]]]:
-        """Executes a SQL query on the SQLite database.
-
-        Args:
-            query (str): The SQL query to execute.
-
-        Raises:
-            ValueError: If the database connection is not established.
-            e: If there is an error executing the SQL query.
-
-        Returns:
-            Optional[Sequence[Row[Any]]]: The result of the query, or None if the result is empty.
-        """
+    def execute_query(self, query: str) -> Optional[Sequence[Row[Any]] | Result[Any]]:
         if self.Session is None or self.engine is None:
             raise ValueError("Database connection not established.")
 
         with self.Session() as session:
             try:
-                result = session.execute(text(query)).fetchall()
+                result = session.execute(text(query))
+                # Only fetch results if the query is a SELECT statement
+                if query.lower().startswith("select"):
+                    result = result.fetchall()
                 session.commit()
-                logger.info(f"Query executed successfully: {result}")
-                return result if result else None
+                logger.info(f"Query executed successfully.")
+                return result if query.lower().startswith("select") else None
 
             except SQLAlchemyError as e:
                 session.rollback()
@@ -80,34 +71,35 @@ class SQLiteDriver(AbstractDriver):
                 logger.error(error_message)
                 raise e
 
-    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str], List[str]]:
+    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str], List[str], List[str]]:
         """Retrieves descriptions and types from the SQLite database.
 
-        Args:
-            db_file (SQLite database, optional): SQLite database to store all the tables. Defaults to SQLITE_DB_FILE.
-
         Returns:
-            Tuple[List[str], List[str], List[str]]: Return descriptions, numerical_columns, categorial_columns
+            Tuple[Dict[str, str], List[str], List[str], List[str]]:
+            A dictionary of column descriptions, and lists of numerical, categorical, and descriptive columns.
         """
         if self.Session is None or self.engine is None:
             raise ValueError("Database connection not established.")
-        # Retrieve descriptions
+
+        # Retrieve descriptions and types from the database
         with self.Session() as session:
             try:
-                description_rows = session.execute(
-                    text("SELECT column_name, description FROM column_descriptions")
+                # Fetch both descriptions and types in a single query from the column_metadata table
+                rows = session.execute(
+                    text("SELECT column_name, description, column_type FROM column_metadata")
                 ).fetchall()
-                descriptions = {row[0]: row[1] for row in description_rows}
 
-                # Retrieve column types
-                type_rows = session.execute(text("SELECT column_name, column_type FROM column_types")).fetchall()
-                numerical_columns = [row[0] for row in type_rows if row[1] == "numerical"]
-                categorical_columns = [row[0] for row in type_rows if row[1] == "categorical"]
+                # Initialize structures for storing results
+                descriptions = {row[0]: row[1] for row in rows}
+                numerical_columns = [row[0] for row in rows if row[2] == "numerical"]
+                categorical_columns = [row[0] for row in rows if row[2] == "categorical"]
+                descriptive_columns = [row[0] for row in rows if row[2] == "descriptive"]
 
-                return descriptions, numerical_columns, categorical_columns
-            except sqlite3.Error as e:
+                return descriptions, numerical_columns, categorical_columns, descriptive_columns
+            except Exception as e:
+                session.rollback()
                 logger.error(f"Error retrieving descriptions and types: {e}")
-                return {}, [], []
+                return {}, [], [], []
 
     def get_database_columns(self, table_name: str) -> List[str]:
         """Returns the columns in the specified table in the order they appear in the database.

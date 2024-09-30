@@ -14,7 +14,7 @@ conn_params = {"dbname": "Aegion", "user": "postgres", "password": "1234", "host
 csv_file_path = "product_descriptions.csv"
 table_name = "new_dataset"
 
-primary_key_column = "id"  # Primary key column name
+primary_key_column = "pri_key"  # Primary key column name
 
 
 # Establish a connection to PostgreSQL

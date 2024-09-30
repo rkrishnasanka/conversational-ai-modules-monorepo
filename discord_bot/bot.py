@@ -1,12 +1,10 @@
+from pathlib import Path
 import random
 import re
-from pathlib import Path
 from typing import List, Tuple, Union
-
 import discord
 from discord.ext import commands
 from langchain_core.messages import AIMessage, HumanMessage
-
 import discord_bot.memory as memory
 from discord_bot.memory import (
     active_users,
@@ -15,12 +13,7 @@ from discord_bot.memory import (
     set_user_active,
     set_user_inactive,
 )
-from discord_bot.parameters import (
-    CHROMA_COLLECTION_NAME,
-    OUTPUT_COLUMNS,
-    SQL_TABLE_NAME,
-    SQLITE_DB_FILE,
-)
+from discord_bot.parameters import CHROMA_COLLECTION_NAME, OUTPUT_COLUMNS, SQL_TABLE_NAME, SQLITE_DB_FILE
 from discord_bot.state import BotState, empty_active_users, new_user, user_exists
 from expert_system.conversation import Chatbot
 from nlqs.database.postgres import PostgresConnectionConfig
@@ -36,19 +29,19 @@ chroma_config = ChromaDBConfig(collection_name=CHROMA_COLLECTION_NAME)
 
 
 # SQLite configuration
-# sqlite_config = SQLiteConnectionConfig(
-#     db_file=Path(SQLITE_DB_FILE), dataset_table_name=SQL_TABLE_NAME, uri_column="URL", output_columns=OUTPUT_COLUMNS
-# )
-
-postgres_config = PostgresConnectionConfig(
-    host="aws-0-us-east-1.pooler.supabase.com",
-    port=6543,
-    user="postgres.xdvwtpqclkedpktjsrzc",
-    password="aOoDlcdghQ39Gkjr",
-    database_name="postgres",
-    dataset_table_name="new_dataset",
-    uri_column="URL",
+sqlite_config = SQLiteConnectionConfig(
+    db_file=Path(SQLITE_DB_FILE), dataset_table_name=SQL_TABLE_NAME, uri_column="URL", output_columns=OUTPUT_COLUMNS
 )
+
+# postgres_config = PostgresConnectionConfig(
+#     host="aws-0-us-east-1.pooler.supabase.com",
+#     port=6543,
+#     user="postgres.xdvwtpqclkedpktjsrzc",
+#     password="aOoDlcdghQ39Gkjr",
+#     database_name="postgres",
+#     dataset_table_name="new_dataset",
+#     uri_column="URL",
+# )
 
 
 def create_bot() -> commands.Bot:
@@ -133,7 +126,7 @@ def create_bot() -> commands.Bot:
                 # Set the typing state on the channel
                 await message.channel.typing()
 
-                nlqs_instance = NLQS(postgres_config, chroma_config)
+                nlqs_instance = NLQS(sqlite_config, chroma_config)
                 queried_data = nlqs_instance.execute_nlqs_workflow(user_input, chat_history)
 
                 if queried_data is None:
@@ -141,9 +134,13 @@ def create_bot() -> commands.Bot:
                     queried_data = NLQSResult(records=[], uris=[])
 
                 corrected_chat_history = change_chat_history(chat_history)
-                print(f"corrected chat history: {corrected_chat_history}")
 
-                reply = chatbot_instance.converse(user_input=user_input, previous_messages=corrected_chat_history)
+                updated_user_input = f"user input: {user_input} Relevant data: {queried_data}"
+                updated_user_input = re.sub(r"{|}", "", updated_user_input)
+
+                reply = chatbot_instance.converse(
+                    user_input=updated_user_input, previous_messages=corrected_chat_history
+                )
                 chat_history.append((user_input, reply[0]))
                 reply = f"<@{user_id}> " + reply[0]
 

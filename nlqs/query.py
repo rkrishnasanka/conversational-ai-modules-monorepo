@@ -20,8 +20,9 @@ class SummarizedInput:
     """Class to represent the summarized input."""
 
     summary: str
-    quantitative_data: Dict[str, str]
-    qualitative_data: Dict[str, str]
+    numerical_data: Dict[str, str]
+    categorical_data: Dict[str, str]
+    descriptive_data: Dict[str, str]
     user_requested_columns: List[str]
     user_intent: str
 
@@ -55,6 +56,7 @@ def summarize(
     column_descriptions_dictionary: Dict[str, str],
     numerical_columns: List[str],
     categorical_columns: List[str],
+    descriptive_columns: List[str],
     llm: Union[ChatOpenAI, OpenAI],
 ) -> SummarizedInput:
     """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
@@ -70,12 +72,17 @@ def summarize(
     Returns:
         dict: {
             "summary": str,
-            "quantitative_data": {
+            "numerical_data": {
                 "column name : str" : "Data mentioned about that column by the user : str",
                 "column name : str" : "Data mentioned about that column by the user : str",
                 "column name : str" : "Data mentioned about that column by the user : str",
             },
-            "qualitative_data": {
+            "categorical_data": {
+                "column name : str" : "Data mentioned about that column by the user : str",
+                "column name : str" : "Data mentioned about that column by the user : str",
+                "column name : str" : "Data mentioned about that column by the user : str",
+            },
+            "descriptive_data": {
                 "column name : str" : "Data mentioned about that column by the user : str",
                 "column name : str" : "Data mentioned about that column by the user : str",
                 "column name : str" : "Data mentioned about that column by the user : str",
@@ -115,13 +122,19 @@ def summarize(
                 The output JSON should have the following structure:
                 `
                     "summary": "summary of the user input",
-                    "quantitative_data":
+                    "numerical_data":
                                         ` 
                                         "column name": "Data mentioned about that column by the user. Example- < 4",
                                         "column name": "Data mentioned about that column by the user. Example- > 6.215",
                                         "column name": "Data mentioned about that column by the user. Example- >= 3.14 or <= 2.718",
                                         `,
-                    "qualitative_data": 
+                    "categorical_data": 
+                                        ` 
+                                        "column name": "Data mentioned about that column by the user",
+                                        "column name": "Data mentioned about that column by the user",
+                                        "column name": "Data mentioned about that column by the user",
+                                        `,
+                    "descriptive_data":
                                         ` 
                                         "column name": "Data mentioned about that column by the user",
                                         "column name": "Data mentioned about that column by the user",
@@ -134,7 +147,8 @@ def summarize(
                 The data we have and chat history:
                 Data:{column_descriptions}\n\n 
                 numerical columns in the data: {numerical_columns}\n\n 
-                descriptive columns in the data: {categorical_columns}\n\n 
+                categorical columns in the data: {categorical_columns}\n\n
+                descriptive columns in the data: {descriptive_columns}\n\n 
                 chat history: {chat_history}
 
                 Now, summarize the user input, chat history and provide the structured output in JSON format.
@@ -167,8 +181,9 @@ def summarize(
 
     summarized_input = SummarizedInput(
         summary=summarized_input_dict.get("summary", ""),
-        quantitative_data=summarized_input_dict.get("quantitative_data", {}),
-        qualitative_data=summarized_input_dict.get("qualitative_data", {}),
+        numerical_data=summarized_input_dict.get("numerical_data", {}),
+        categorical_data=summarized_input_dict.get("categorical_data", {}),
+        descriptive_data=summarized_input_dict.get("descriptive_data", {}),
         user_requested_columns=summarized_input_dict.get("user_requested_columns", []),
         user_intent=summarized_input_dict.get("user_intent", ""),
     )

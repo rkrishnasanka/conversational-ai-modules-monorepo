@@ -12,7 +12,7 @@ import pandas as pd
 CSV_FILE = "product_descriptions.csv"
 DB_FILE = "aegion.db"
 TABLE_NAME = "new_dataset"
-PRIMARY_KEY = "id"
+PRIMARY_KEY = "pri_key"
 
 # Read the CSV file into a DataFrame
 # Attempt using UTF-8 encoding first

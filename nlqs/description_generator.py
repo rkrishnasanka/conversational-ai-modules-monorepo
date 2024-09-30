@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Dict, List, Optional, Union
 
@@ -19,65 +20,65 @@ from nlqs.parameters import OPENAI_API_KEY
 # 3. pass the column name, it's data type and the sample data into the llm to generate desccriptions
 # 4. in the instruction for llm, i passed some predifined descriptions to make the llm know how to write descriptions.
 # these predifined descriptions will not effect any future changes..
-def get_column_descriptions(dataframe: pd.DataFrame) -> Dict[str, str]:
-    """
-    Generates the descriptions for each columns.
-
-    Args:
-        dataframe(pd.Dataframe): data in the database converted into a pandas dataframe.
-
-    Returns:
-        descriptions(Dict[str, str]): a dictionary of column descriptions.
-    """
-
+def get_column_descriptions(dataframe: pd.DataFrame) -> Dict[str, Dict[str, str]]:
     print("Generating column descriptions...")
 
-    # Initialize an empty dictionary to store column descriptions
+    # Initialize an empty dictionary to store column descriptions and types
     descriptions = {}
 
     for column in dataframe.columns:
-        # for each column get data and create sample data using five non empty rows and reomve any specials characters.
+        # For each column, get data and create sample data from five non-empty rows, removing special characters.
         col_data = dataframe[column]
-        # get the data type of the column
         col_type = col_data.dtype
-        # get the sample data from five non empty rows for the column
         sample_data = dataframe[column].dropna().sample(min(5, len(dataframe[column]))).tolist()
-        # mapping column name and the column data
         sample_data_str = ", ".join(map(str, sample_data))
-        # removing { } because the llm cannot handle some special characters.
         sample_data_str = re.sub("{|}", "", sample_data_str)
 
-        # Prepare the prompt
+        # Prepare the prompt for LLM
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
                     """
-                The following is a description of a dataset column:
-                Column Name: {column}
-                Data Type: {col_type}
-                
-                Please provide a detailed description of this column, including its potential meaning, use, and importance in a dataset. Use sample data to identify the column's meaning.
-                
-                Sample Data: {sample_data_str}
-                
-                Use the following format:
+                    You are an AI specialized in describing dataset columns. Your job is to analyze a given dataset column, 
+                    including its name, datatype, and sample data, and generate a detailed description.
 
-                For example:
+                    Guidelines:
+                    - If the datatype is `int64` or `float64`, the column type is "numerical".
+                    - If the datatype is `object`, the column type is either "categorical" or "descriptive" based on the data.
+                    - Use the sample data to infer the potential meaning, importance, and use of the column.
+
+                    data:
+                    The following is a description of a dataset column:
+                    Column Name: {column}
+                    Data Type: {col_type}                    
+                    Sample Data: {sample_data_str}
+
+                    
+                    For example:
                     "Product": "This column contains the name of the product. It is a text field and can be used for exact or partial matches.",
                     "Category": "This column contains the category of the product. It is a text field and can be used for exact or partial matches.",
                     "MedicalBenefits": "This column contains the medical benefits of the product. It is a text field and can be used for exact or partial matches.",
                     "CustomerRating": "This column contains the customer rating of the product. It is a numerical field and can be used for exact matches or range comparisons.",
                     "PurchaseFrequency": "This column contains the frequency of product purchase. It is a text field and can be used for exact or partial matches.",
                     "description": "This column contains the description of the product. It is a text field and can be used for exact or partial matches."
-                """,
+                    
+                                        
+                    Output format:
+                    {{
+                        "column_name": "{column}",
+                        "description": "<Detailed description based on column meaning and sample data>",
+                        "column_type": "<numerical, categorical, or descriptive>"
+                    }}
+                    Please provide a detailed description of this column, including its potential meaning, use, and importance in a dataset. Use sample data to identify the column's meaning.
+                    """,
                 ),
                 ("user", "{user_input}"),
             ]
         )
 
         llm = ChatOpenAI(
-            model="gpt-4",
+            model="gpt-4o",
             api_key=SecretStr(OPENAI_API_KEY),
             temperature=0.0,
             verbose=True,
@@ -96,75 +97,62 @@ def get_column_descriptions(dataframe: pd.DataFrame) -> Dict[str, str]:
             }
         )
 
-        # Extract the description from the response
-        description = response.strip()
+        # print(f"response: {response}")
 
-        # Add the description to the dictionary
-        descriptions[column] = description
+        # TODO write if condition...
 
-    # Return the dictionary of column descriptions
+        if response.startswith("```json"):
+            match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
+
+            # print(f"response: {match}")
+
+            if match:
+                response = match.group(1)
+
+        json_response = json.loads(response)
+
+        column_name = json_response["column_name"]
+        description = json_response["description"]
+        column_type = json_response["column_type"]
+
+        # Store the description and type in the dictionary
+        descriptions[column_name] = {
+            "description": description,
+            "column_type": column_type,
+        }
+
+    # Return the dictionary of column descriptions and types
     return descriptions
 
 
 def store_descriptions_in_db(
-    descriptions: Dict[str, str],
-    numerical_columns: List[str],
-    categorical_columns: List[str],
+    descriptions: Dict[str, Dict[str, str]],  # Updated to hold descriptions and types
     db_driver: Union[SQLiteDriver, PostgresDriver],
 ):
-    """
-    Stores the generated column descriptions in the database.
-
-    Args:
-        descriptions (Dict[str,str]): description of each column along with the column name.
-        numerical_columns (List[str]): numerical columns in the database.
-        categorical_columns (List[str]): categorical columns in the database
-        db_driver (Union[SQLiteDriver, PostgresDriver]): Database driver.
-    """
-
-    # Create table for column descriptions
+    # Create table to store column names, descriptions, and types in one table
     db_driver.execute_query(
         """
-        CREATE TABLE IF NOT EXISTS column_descriptions (
+        CREATE TABLE IF NOT EXISTS column_metadata (
             column_name TEXT PRIMARY KEY,
-            description TEXT
-        )
-        """
-    )
-
-    for column, description in descriptions.items():
-        db_driver.execute_query(
-            f"""
-            INSERT OR REPLACE INTO column_descriptions (column_name, description)
-            VALUES ({column}, {description})
-            """
-        )
-
-    # Create table for numerical and categorical columns
-    db_driver.execute_query(
-        """
-        CREATE TABLE IF NOT EXISTS column_types (
-            column_name TEXT PRIMARY KEY,
+            description TEXT,
             column_type TEXT
         )
         """
     )
 
-    for column in numerical_columns:
+    for column, metadata in descriptions.items():
+        description = metadata["description"]
+        column_type = metadata["column_type"]
+
+        # Insert or replace each column's name, description, and type into the table
         db_driver.execute_query(
             f"""
-            INSERT OR REPLACE INTO column_types (column_name, column_type)
-            VALUES ({column}, "numerical")
+            INSERT OR REPLACE INTO column_metadata (column_name, description, column_type)
+            VALUES ("{column}", "{description}", "{column_type}")
             """
         )
 
-    for column in categorical_columns:
-        db_driver.execute_query(
-            f"""
-            INSERT OR REPLACE INTO column_types (column_name, column_type)
-            VALUES ({column}, "categorical")
-            """
-        )
+    print("Column metadata (name, description, type) stored in the database.")
 
 
 def get_chroma_collection(
@@ -173,17 +161,6 @@ def get_chroma_collection(
     db_driver: Union[SQLiteDriver, PostgresDriver],
     primary_key: Optional[str],
 ) -> chromadb.Collection:
-    """Gets the chroma collection.
-
-    Args:
-        collection_name (str): Name of the collection.
-        client (chromadb.Client): Chroma client.
-        db_driver (Union[SQLiteDriver, PostgresDriver]): Database driver.
-        primary_key (Optional[str]): Primary key column name.
-
-    Returns:
-        Chroma: Chroma collection.
-    """
 
     collections = [col.name for col in client.list_collections()]
 
@@ -236,3 +213,18 @@ def get_chroma_collection(
 
         # chroma_collection = client.get_collection(collection_name)
     return chroma_collection
+
+def generate_column_description(df: pd.DataFrame, db_driver: Union[SQLiteDriver, PostgresDriver]):
+
+    # Get column descriptions along with types
+    column_descriptions = get_column_descriptions(dataframe=df)
+
+    # Store descriptions and column types in the database
+    store_descriptions_in_db(
+        descriptions=column_descriptions,
+        db_driver=db_driver,
+    )
+
+    print(column_descriptions)
+    print("Column descriptions and column types stored in the database.")
+
