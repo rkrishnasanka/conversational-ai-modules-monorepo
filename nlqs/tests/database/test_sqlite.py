@@ -164,7 +164,6 @@ def test_get_primary_key_no_primary_key(setup_database):
         driver.get_primary_key("test_table_no_pk")
 
 
-
 def test_multithreading(setup_database):
     """Test that multiple threads can access the database simultaneously."""
     driver = setup_database

@@ -1,17 +1,13 @@
-from typing import Dict, List, Optional, Union
-from nlqs.database.postgres import PostgresDriver
-from nlqs.database.sqlite import SQLiteDriver
-import chromadb
-from nlqs.nlqs import ChromaDBConfig
-from nlqs.database.postgres import PostgresConnectionConfig
-from nlqs.database.sqlite import SQLiteConnectionConfig
 from pathlib import Path
+from typing import Dict, List, Optional, Union
+
+import chromadb
+
 from discord_bot.parameters import (
     CHROMA_COLLECTION_NAME,
     OUTPUT_COLUMNS,
     SQL_TABLE_NAME,
     SQLITE_DB_FILE,
-    SQL_TABLE_NAME,
     SUPABASE_DATABASE_NAME,
     SUPABASE_HOST,
     SUPABASE_PASSWORD,
@@ -19,6 +15,9 @@ from discord_bot.parameters import (
     SUPABASE_USER,
     URL_COLUMN,
 )
+from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
+from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
+from nlqs.nlqs import ChromaDBConfig
 
 
 def generate_chroma_collection(
@@ -92,7 +91,6 @@ def generate_chroma_collection(
 
 
 if __name__ == "__main__":
-
     # SQLite configuration
     # connection_config = SQLiteConnectionConfig(
     #     db_file=Path(SQLITE_DB_FILE), dataset_table_name=SQL_TABLE_NAME, uri_column="URL", output_columns=OUTPUT_COLUMNS

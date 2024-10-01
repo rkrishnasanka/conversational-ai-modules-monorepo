@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 
 
 # The schema for the PostgreSQL database is defined here
-# the top-level key is the table name, and the value is a dictionary 
+# the top-level key is the table name, and the value is a dictionary
 # with the column name and type
 POSTGRES_SCHEMA = {
     "column_metadata": {
@@ -301,8 +301,7 @@ class PostgresDriver(AbstractDriver):
         try:
             self.cursor.execute(query)
             result = self.cursor.fetchall()
-            
-            
+
             if result:
                 # Check to see if the table names are present in the database
                 for row in result:
@@ -317,26 +316,22 @@ class PostgresDriver(AbstractDriver):
                         if column_name not in POSTGRES_SCHEMA[table_name]:
                             logger.error(f"Column {column_name} not found in table {table_name}.")
                             return False
-                        
+
                         # check if the column type matches
                         if column_type != POSTGRES_SCHEMA[table_name][column_name]:
                             logger.warning(f"Column {column_name} in table {table_name} has incorrect type.")
                             # return False
-            
 
             else:
                 logger.error("No results returned for introspection query in the database.")
                 return False
-            
+
             return True
 
         except psycopg2.Error as e:
             logger.error(f"Error querying database schema: {e}")
             return False
-        
 
-
-    
     @property
     def db_connection(self):
         if self._db_connection is None:

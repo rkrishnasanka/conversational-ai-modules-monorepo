@@ -82,7 +82,6 @@ class NLQS:
         # TODO - Figure out if we need to create introspection table, and create
         pass
 
-
     # Step 4
     def execute_nlqs_workflow(self, user_input: str, chat_history: List[Tuple[str, str]]) -> NLQSResult:
         """This function is where the whole interaction happens.
@@ -117,9 +116,12 @@ class NLQS:
         # Database Connection
         driver = self.connection_driver
 
-        column_descriptions, numerical_columns, categorical_columns, descriptive_columns = (
-            driver.retrieve_descriptions_and_types_from_db()
-        )
+        (
+            column_descriptions,
+            numerical_columns,
+            categorical_columns,
+            descriptive_columns,
+        ) = driver.retrieve_descriptions_and_types_from_db()
 
         if column_descriptions == {}:
             raise ValueError("No data found in the database. Generate Column descriptions.")
@@ -210,9 +212,8 @@ class NLQS:
 
                 print(intersection_ids)
 
-                intersection_ids_string = ','.join(str(id) for id in intersection_ids)
+                intersection_ids_string = ",".join(str(id) for id in intersection_ids)
 
-                
                 # Initial query to retrieve all columns based on the intersection IDs
                 final_query = f"SELECT * FROM {self.table_name} WHERE {primary_key} IN ({intersection_ids_string})"
 

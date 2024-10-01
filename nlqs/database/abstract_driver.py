@@ -21,7 +21,7 @@ class AbstractDriver(ABC):
         raise NotImplementedError("This method must be implemented by the subclass")
 
     @abstractmethod
-    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str],  List[str],  List[str]]:
+    def retrieve_descriptions_and_types_from_db(self) -> Tuple[Dict[str, str], List[str], List[str], List[str]]:
         raise NotImplementedError("This method must be implemented by the subclass")
 
     @abstractmethod

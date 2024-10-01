@@ -272,6 +272,5 @@ class SQLiteDriver(AbstractDriver):
             except sqlite3.Error as e:
                 raise sqlite3.Error(f"Error getting primary key from table '{table_name}': {e}")
 
-
     def validate_db_schema(self) -> bool:
         raise NotImplementedError("This method must be implemented by the subclass")

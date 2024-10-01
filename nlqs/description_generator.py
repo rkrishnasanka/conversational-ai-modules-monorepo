@@ -161,7 +161,6 @@ def get_chroma_collection(
     db_driver: Union[SQLiteDriver, PostgresDriver],
     primary_key: Optional[str],
 ) -> chromadb.Collection:
-
     collections = [col.name for col in client.list_collections()]
 
     if collection_name in collections:
@@ -214,8 +213,8 @@ def get_chroma_collection(
         # chroma_collection = client.get_collection(collection_name)
     return chroma_collection
 
-def generate_column_description(df: pd.DataFrame, db_driver: Union[SQLiteDriver, PostgresDriver]):
 
+def generate_column_description(df: pd.DataFrame, db_driver: Union[SQLiteDriver, PostgresDriver]):
     # Get column descriptions along with types
     column_descriptions = get_column_descriptions(dataframe=df)
 
@@ -227,4 +226,3 @@ def generate_column_description(df: pd.DataFrame, db_driver: Union[SQLiteDriver,
 
     print(column_descriptions)
     print("Column descriptions and column types stored in the database.")
-
