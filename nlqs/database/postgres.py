@@ -1,4 +1,3 @@
-from ast import Set
 import logging
 import re
 from dataclasses import dataclass
@@ -7,7 +6,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pandas as pd
 import psycopg2
 from psycopg2 import sql
-from py import log
 
 from nlqs.database.abstract_driver import AbstractDriver
 

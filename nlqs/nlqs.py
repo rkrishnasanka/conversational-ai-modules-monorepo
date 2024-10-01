@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 # Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR)
 logger.setLevel(logging.INFO)
 
-# Create a file handler to save logs
-file_handler = logging.FileHandler(__file__)
+# Create a stream handler to output logs to the console
+stream_handler = logging.StreamHandler()
 
 # Create a formatter to format the log messages
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
-# Add the formatter to the file handler
-file_handler.setFormatter(formatter)
+# Add the formatter to the stream handler
+stream_handler.setFormatter(formatter)
 
-# Add the file handler to the logger
-logger.addHandler(file_handler)
+# Add the stream handler to the logger
+logger.addHandler(stream_handler)
 
 
 @dataclass
@@ -210,8 +210,11 @@ class NLQS:
 
                 print(intersection_ids)
 
+                intersection_ids_string = ','.join(str(id) for id in intersection_ids)
+
+                
                 # Initial query to retrieve all columns based on the intersection IDs
-                final_query = f"SELECT * FROM {self.table_name} WHERE {primary_key} IN ({','.join(str(id) for id in intersection_ids)})"
+                final_query = f"SELECT * FROM {self.table_name} WHERE {primary_key} IN ({intersection_ids_string})"
 
                 # Get the columns in the order they appear in the database
                 columns_database = driver.get_database_columns(self.table_name)
@@ -222,7 +225,7 @@ class NLQS:
 
                 # If output_columns is specified, modify the query to select only those columns
                 if output_columns:
-                    final_query = f"SELECT {','.join(col for col in output_columns)} FROM {self.table_name} WHERE {primary_key} IN ({','.join(str(id) for id in intersection_ids)})"
+                    final_query = f"SELECT {','.join(col for col in output_columns)} FROM {self.table_name} WHERE {primary_key} IN ({intersection_ids_string})"
                     data_retreived = driver.execute_query(final_query)
                     # Since we now have a subset of columns, use output_columns directly
                     columns_to_use = output_columns
