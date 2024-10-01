@@ -40,3 +40,7 @@ class AbstractDriver(ABC):
     @abstractmethod
     def get_primary_key(self, table_name: str) -> str:
         raise NotImplementedError("This method must be implemented by the subclass")
+
+    @abstractmethod
+    def validate_db_schema(self) -> bool:
+        raise NotImplementedError("This method must be implemented by the subclass")
