@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
 import pandas as pd
-from regex import D
 
 
 class AbstractDriver(ABC):
