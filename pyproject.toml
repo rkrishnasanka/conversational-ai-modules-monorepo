@@ -55,6 +55,3 @@ line-length = 120
 
 [tool.isort]
 profile = "black"
-
-[tool.poetry.scripts]
-start-discord-bot = "discord_bot.server:run_server"
