@@ -1,16 +1,22 @@
-import openai
-from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
-from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 import json
-from typing import List, Dict, Any, Optional
-from enum import Enum, auto
 from dataclasses import dataclass, field
+from enum import Enum, auto
+from typing import Any, Dict, List, Optional
+
+import openai
+from openai.types.chat.chat_completion_system_message_param import (
+    ChatCompletionSystemMessageParam,
+)
+from openai.types.chat.chat_completion_user_message_param import (
+    ChatCompletionUserMessageParam,
+)
 
 
 class State(Enum):
     """
     Enum representing the different states of the conversation.
     """
+
     INITIAL_INQUIRY = auto()
     MEDICAL_ASSESSMENT = auto()
     RECOMMENDATION = auto()
@@ -22,6 +28,7 @@ class Response:
     """
     Data class for standardized responses.
     """
+
     bot_response: str
     follow_up_question: str
     sample_options: List[str] = field(default_factory=list)
@@ -53,20 +60,38 @@ class CannabisRecommendationSystem:
             State.INITIAL_INQUIRY: {
                 "required_info": ["is_medical_query", "main_symptom"],
                 "goal": "Understand the user's initial inquiry and identify the main symptom.",
-                "initial_message": "Hi! I'm here to help recommend products for your needs. Could you tell me what brings you here today?"
+                "initial_message": "Hi! I'm here to help recommend products for your needs. Could you tell me what brings you here today?",
             },
             State.MEDICAL_ASSESSMENT: {
-                "required_info": ["additional_symptoms", "symptom_severity", "symptom_duration", "previous_treatments", "medical_history", "lifestyle_factors"],
-                "goal": "Gather comprehensive information about the user's health condition and symptoms."
+                "required_info": [
+                    "additional_symptoms",
+                    "symptom_severity",
+                    "symptom_duration",
+                    "previous_treatments",
+                    "medical_history",
+                    "lifestyle_factors",
+                ],
+                "goal": "Gather comprehensive information about the user's health condition and symptoms.",
             },
             State.RECOMMENDATION: {
-                "required_info": ["suitable_products", "usage_guidelines", "precautions", "expected_effects", "user_preferences"],
-                "goal": "Generate natural language queries and provide user-friendly product recommendations."
+                "required_info": [
+                    "suitable_products",
+                    "usage_guidelines",
+                    "precautions",
+                    "expected_effects",
+                    "user_preferences",
+                ],
+                "goal": "Generate natural language queries and provide user-friendly product recommendations.",
             },
             State.CONCLUSION: {
-                "required_info": ["user_satisfaction", "understood_recommendations", "remaining_concerns", "next_steps"],
-                "goal": "Ensure recommendations are understood and provide clear next steps."
-            }
+                "required_info": [
+                    "user_satisfaction",
+                    "understood_recommendations",
+                    "remaining_concerns",
+                    "next_steps",
+                ],
+                "goal": "Ensure recommendations are understood and provide clear next steps.",
+            },
         }
         print(f"System initialized. Initial State: {self.state.name}")
 
@@ -83,7 +108,7 @@ class CannabisRecommendationSystem:
                 "use_times": ["Any time", "Daytime", "Nighttime"],
                 "common_issues": ["Pain", "Anxiety", "Sleep", "Nausea", "Mood", "Inflammation", "Headache"],
                 "strengths": ["Mild", "Moderate", "Strong"],
-                "active_compounds": ["Compound A", "Compound B", "Compound C", "Compound D", "Compound E"]
+                "active_compounds": ["Compound A", "Compound B", "Compound C", "Compound D", "Compound E"],
             }
         except Exception as e:
             print(f"Error loading knowledge base: {e}")
@@ -108,7 +133,9 @@ class CannabisRecommendationSystem:
             Format: Return only a JSON array of query strings
             """
 
-            response = self.get_openai_response_text(prompt, "Generate natural language queries for product recommendations.")
+            response = self.get_openai_response_text(
+                prompt, "Generate natural language queries for product recommendations."
+            )
             if response:
                 try:
                     queries = json.loads(response)
@@ -130,7 +157,9 @@ class CannabisRecommendationSystem:
 
         self.conversation_history.append(ChatCompletionUserMessageParam(content=user_input, role="user"))
         response = self.process_input(user_input)
-        self.conversation_history.append(ChatCompletionSystemMessageParam(content=response.bot_response, role="assistant"))
+        self.conversation_history.append(
+            ChatCompletionSystemMessageParam(content=response.bot_response, role="assistant")
+        )
         return response
 
     def process_input(self, user_input: str) -> Response:
@@ -144,32 +173,32 @@ class CannabisRecommendationSystem:
         if not response:
             return self.get_fallback_response()
 
-        self.context.update(response.get('extracted_info', {}))
+        self.context.update(response.get("extracted_info", {}))
         print(f"Current context: {json.dumps(self.context, indent=2)}")
 
         if self.state == State.RECOMMENDATION:
             queries = self.generate_natural_language_queries()
-            response['natural_language_queries'] = queries
+            response["natural_language_queries"] = queries
             self.generated_queries = queries
             print(f"Generated queries: {json.dumps(queries, indent=2)}")
 
-        missing_info = [info for info in current_state_info['required_info'] if info not in self.context]
+        missing_info = [info for info in current_state_info["required_info"] if info not in self.context]
         print(f"Missing info: {missing_info}")
 
-        if not missing_info or response.get('state_complete', False):
+        if not missing_info or response.get("state_complete", False):
             print(f"State {self.state.name} complete")
             self.transition_to_next_state()
 
         if self.state == State.CONCLUSION:
-            response['conversation_complete'] = True
+            response["conversation_complete"] = True
 
         return Response(
-            bot_response=response.get('bot_response', "I'm here to assist you."),
-            follow_up_question=response.get('follow_up_question', ""),
-            sample_options=response.get('sample_options', []),
-            conversation_complete=response.get('conversation_complete', False),
-            state_complete=response.get('state_complete', False),
-            natural_language_queries=response.get('natural_language_queries', [])
+            bot_response=response.get("bot_response", "I'm here to assist you."),
+            follow_up_question=response.get("follow_up_question", ""),
+            sample_options=response.get("sample_options", []),
+            conversation_complete=response.get("conversation_complete", False),
+            state_complete=response.get("state_complete", False),
+            natural_language_queries=response.get("natural_language_queries", []),
         )
 
     def get_openai_response_text(self, prompt: str, system_message: str) -> Optional[str]:
@@ -181,9 +210,9 @@ class CannabisRecommendationSystem:
                 model="gpt-4",
                 messages=[
                     ChatCompletionSystemMessageParam(content=system_message, role="system"),
-                    ChatCompletionUserMessageParam(content=prompt, role="user")
+                    ChatCompletionUserMessageParam(content=prompt, role="user"),
                 ],
-                temperature=0.7
+                temperature=0.7,
             )
 
             if response and response.choices and response.choices[0].message.content:
@@ -218,8 +247,7 @@ class CannabisRecommendationSystem:
             """
 
             response_text = self.get_openai_response_text(
-                prompt,
-                "You are a friendly product recommendation assistant. Use simple language."
+                prompt, "You are a friendly product recommendation assistant. Use simple language."
             )
 
             if response_text:
@@ -242,7 +270,7 @@ class CannabisRecommendationSystem:
             follow_up_question="What else would you like to share?",
             sample_options=[],
             conversation_complete=False,
-            state_complete=False
+            state_complete=False,
         )
 
     def transition_to_next_state(self):
@@ -259,8 +287,11 @@ class CannabisRecommendationSystem:
             print("Conversation concluded. Thank you!")
         print(f"Transitioned to state: {self.state.name}")
 
+
 import os
+
 from dotenv import load_dotenv
+
 
 class CannabisRecommendationApp:
     """
@@ -279,21 +310,21 @@ class CannabisRecommendationApp:
         Run the Cannabis Recommendation Application.
         """
         print("Welcome to the Product Recommendation Assistant!")
-        
+
         while True:
             try:
                 user_input = input("\nYou: ").strip()
                 if not user_input:
                     print("Please type something to continue.")
                     continue
-                    
-                if user_input.lower() in ['exit', 'quit', 'bye']:
+
+                if user_input.lower() in ["exit", "quit", "bye"]:
                     print("Thank you for using the Product Recommendation Assistant. Goodbye!")
                     break
 
                 response = self.system.chat(user_input)
                 print(f"\nAssistant: {response.bot_response}")
-                
+
                 if self.system.state == State.RECOMMENDATION and response.natural_language_queries:
                     print("\nGenerated Queries:")
                     for i, query in enumerate(response.natural_language_queries, 1):
@@ -317,6 +348,7 @@ class CannabisRecommendationApp:
                 print(f"Error in conversation loop: {e}")
                 print("I apologize, but something went wrong. Let's continue our conversation.")
 
+
 def main():
     """
     Main function to run the Cannabis Recommendation Application.
@@ -327,7 +359,7 @@ def main():
         if not api_key:
             print("API key not found in environment variables")
             raise ValueError("API key not found")
-            
+
         print("Starting application")
         app = CannabisRecommendationApp(api_key)
         app.run()
@@ -335,6 +367,6 @@ def main():
         print(f"Application error: {e}")
         print("An error occurred while starting the application. Please check your configuration.")
 
+
 if __name__ == "__main__":
     main()
-

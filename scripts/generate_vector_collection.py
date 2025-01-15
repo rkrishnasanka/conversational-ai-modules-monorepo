@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import chromadb
-
 from discord_bot.parameters import (
     CHROMA_COLLECTION_NAME,
     OUTPUT_COLUMNS,
@@ -15,6 +14,7 @@ from discord_bot.parameters import (
     SUPABASE_USER,
     URL_COLUMN,
 )
+
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 from nlqs.nlqs import ChromaDBConfig
