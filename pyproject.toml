@@ -9,6 +9,7 @@ packages = [
     { include = "nlqs" },
     { include = "expert_system" },
     { include = "tot" },
+    { include = "utils" }
 ]
 
 [tool.poetry.dependencies]
