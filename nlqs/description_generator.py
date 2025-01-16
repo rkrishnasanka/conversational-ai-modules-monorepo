@@ -13,6 +13,7 @@ from pydantic.v1 import SecretStr
 from nlqs.database.postgres import PostgresDriver
 from nlqs.database.sqlite import SQLiteDriver
 from nlqs.parameters import OPENAI_API_KEY
+from utils.llm import get_default_llm
 
 
 # 1. pass the data in the databse
@@ -30,7 +31,8 @@ def get_column_descriptions(dataframe: pd.DataFrame) -> Dict[str, Dict[str, str]
         # For each column, get data and create sample data from five non-empty rows, removing special characters.
         col_data = dataframe[column]
         col_type = col_data.dtype
-        sample_data = dataframe[column].dropna().sample(min(5, len(dataframe[column]))).tolist()
+        sample_data = dataframe[column].dropna().sample(
+            min(5, len(dataframe[column]))).tolist()
         sample_data_str = ", ".join(map(str, sample_data))
         sample_data_str = re.sub("{|}", "", sample_data_str)
 
@@ -77,12 +79,7 @@ def get_column_descriptions(dataframe: pd.DataFrame) -> Dict[str, Dict[str, str]
             ]
         )
 
-        llm = ChatOpenAI(
-            model="gpt-4o",
-            api_key=SecretStr(OPENAI_API_KEY),
-            temperature=0.0,
-            verbose=True,
-        )
+        llm = get_default_llm()
 
         output_parser = StrOutputParser()
         chain = prompt | llm | output_parser
@@ -126,7 +123,8 @@ def get_column_descriptions(dataframe: pd.DataFrame) -> Dict[str, Dict[str, str]
 
 
 def store_descriptions_in_db(
-    descriptions: Dict[str, Dict[str, str]],  # Updated to hold descriptions and types
+    # Updated to hold descriptions and types
+    descriptions: Dict[str, Dict[str, str]],
     db_driver: Union[SQLiteDriver, PostgresDriver],
 ):
     # Create table to store column names, descriptions, and types in one table
@@ -164,12 +162,15 @@ def get_chroma_collection(
     collections = [col.name for col in client.list_collections()]
 
     if collection_name in collections:
-        print(f"Collection '{collection_name}' already exists, getting existing collection...")
+        print(
+            f"Collection '{collection_name}' already exists, getting existing collection...")
         chroma_collection = client.get_collection(collection_name)
     else:
-        print(f"Collection '{collection_name}' does not exists, Creating a collection...")
+        print(
+            f"Collection '{collection_name}' does not exists, Creating a collection...")
 
-        raise ValueError("Chroma collection doesn't exist. Create a chroma collection!!")
+        raise ValueError(
+            "Chroma collection doesn't exist. Create a chroma collection!!")
 
         # collection = client.create_collection(collection_name)
 

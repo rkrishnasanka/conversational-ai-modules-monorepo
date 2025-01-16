@@ -1,4 +1,4 @@
-from typing import List, Literal, LiteralString, Optional
+from typing import List, Literal, Optional
 
 import openai
 from openai.types.chat.chat_completion_system_message_param import (
@@ -22,7 +22,7 @@ class ThoughtGenerator:
         self.thought_generation_prompt = thought_generation_prompt or self.default_thought_generation_prompt()
 
     @staticmethod
-    def default_thought_generation_prompt() -> LiteralString:
+    def default_thought_generation_prompt() -> str:
         """Return the default thought generation prompt for the thought generator."""
 
         return """
@@ -52,7 +52,8 @@ class ThoughtGenerator:
         Returns:
             List[str]: A list of generated thoughts.
         """
-        prompt = self.thought_generation_prompt.format(current_state=current_state, num_thoughts=num_thoughts)
+        prompt = self.thought_generation_prompt.format(
+            current_state=current_state, num_thoughts=num_thoughts)
 
         messages = [
             ChatCompletionSystemMessageParam(
@@ -72,7 +73,8 @@ class ThoughtGenerator:
         thoughts_text = response.choices[0].message.content
         if thoughts_text is not None:
             thoughts_text = thoughts_text.strip()
-            thoughts = [thought.split(". ", 1)[1] for thought in thoughts_text.split("\n") if ". " in thought]
+            thoughts = [thought.split(". ", 1)[1] for thought in thoughts_text.split(
+                "\n") if ". " in thought]
             return thoughts[:num_thoughts]
         else:
             raise Exception("No thoughts generated.")

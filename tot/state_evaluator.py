@@ -1,4 +1,4 @@
-from typing import List, Literal, LiteralString, Optional
+from typing import List, Literal, Optional
 
 import openai
 from openai.types.chat.chat_completion import ChatCompletion
@@ -22,7 +22,7 @@ class StateEvaluator:
         self.evaluation_prompt = evaluation_prompt or self.default_evaluation_prompt()
 
     @staticmethod
-    def default_evaluation_prompt() -> LiteralString:
+    def default_evaluation_prompt() -> str:
         """Return the default evaluation prompt for the state evaluator."""
 
         return """
@@ -42,7 +42,8 @@ class StateEvaluator:
         Returns:
             List[float]: A list of numerical ratings for each state.
         """
-        states_text = "\n".join(f"{i+1}. {state}" for i, state in enumerate(states))
+        states_text = "\n".join(
+            f"{i+1}. {state}" for i, state in enumerate(states))
 
         prompt = self.evaluation_prompt.format(states_text=states_text)
 
@@ -62,7 +63,8 @@ class StateEvaluator:
             return [0.0] * len(states)
         else:
             ratings_text = ratings_text.strip()
-            ratings = [float(rating) for rating in ratings_text.split("\n") if rating.replace(".", "").isdigit()]
+            ratings = [float(rating) for rating in ratings_text.split(
+                "\n") if rating.replace(".", "").isdigit()]
 
         if len(ratings) < len(states):
             ratings.extend([0.0] * (len(states) - len(ratings)))

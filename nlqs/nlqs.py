@@ -13,6 +13,7 @@ from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 from nlqs.description_generator import get_chroma_collection
 from nlqs.parameters import OPENAI_API_KEY
 from nlqs.query import generate_quantitaive_serach_query, qualitative_search, summarize
+from utils.llm import get_default_llm
 
 # Create a logger object
 logger = logging.getLogger(__name__)
@@ -66,14 +67,16 @@ class NLQS:
 
         # Create the llm object
         # Initializes the ChatOpenAI LLM model
-        self.llm = ChatOpenAI(temperature=0, model="gpt-4-turbo", api_key=SecretStr(OPENAI_API_KEY), max_tokens=1000)
+        self.llm = get_default_llm()
 
         self.chroma_config = chroma_config
         chroma_type = chroma_config.is_local
         if chroma_type:
-            self.chroma_client = chromadb.PersistentClient(path=str(self.chroma_config.persist_path))
+            self.chroma_client = chromadb.PersistentClient(
+                path=str(self.chroma_config.persist_path))
         else:
-            self.chroma_client = chromadb.HttpClient(port=chroma_config.port, host=chroma_config.host)
+            self.chroma_client = chromadb.HttpClient(
+                port=chroma_config.port, host=chroma_config.host)
 
         self.table_name = connection_config.dataset_table_name
         self.uri_column = connection_config.uri_column
@@ -124,7 +127,8 @@ class NLQS:
         ) = driver.retrieve_descriptions_and_types_from_db()
 
         if column_descriptions == {}:
-            raise ValueError("No data found in the database. Generate Column descriptions.")
+            raise ValueError(
+                "No data found in the database. Generate Column descriptions.")
 
         primary_key = driver.get_primary_key(self.table_name)
 
@@ -188,23 +192,28 @@ class NLQS:
                 # TODO: use descriptive data...
                 descriptive_data = summarized_input.descriptive_data
 
-                quantitaive_query = generate_quantitaive_serach_query(numerical_data, self.table_name, primary_key)
-                quantitative_ids_uncleaned = driver.execute_query(quantitaive_query)
+                quantitaive_query = generate_quantitaive_serach_query(
+                    numerical_data, self.table_name, primary_key)
+                quantitative_ids_uncleaned = driver.execute_query(
+                    quantitaive_query)
 
                 quantitative_ids = []
 
                 if quantitative_ids_uncleaned:
-                    quantitative_ids = [item[0] for item in quantitative_ids_uncleaned]
+                    quantitative_ids = [item[0]
+                                        for item in quantitative_ids_uncleaned]
                     print(f"quantitative_ids: {quantitative_ids}")
 
-                qualitative_ids = qualitative_search(chroma_collections, categorical_data, primary_key)
+                qualitative_ids = qualitative_search(
+                    chroma_collections, categorical_data, primary_key)
                 print(f"qualitative_ids: {qualitative_ids}")
 
                 # Find the intersection of quantitative_ids and qualitative_ids
                 if not quantitative_ids or not qualitative_ids:
                     intersection_ids = quantitative_ids or qualitative_ids
                 else:
-                    intersection_ids = list(set(quantitative_ids) & set(qualitative_ids))
+                    intersection_ids = list(
+                        set(quantitative_ids) & set(qualitative_ids))
 
                 # Ensure intersection_ids is set to qualitative_ids if it's empty
                 if not intersection_ids:
@@ -212,7 +221,8 @@ class NLQS:
 
                 print(intersection_ids)
 
-                intersection_ids_string = ",".join(str(id) for id in intersection_ids)
+                intersection_ids_string = ",".join(
+                    str(id) for id in intersection_ids)
 
                 # Initial query to retrieve all columns based on the intersection IDs
                 final_query = f"SELECT * FROM {self.table_name} WHERE {primary_key} IN ({intersection_ids_string})"
@@ -248,7 +258,8 @@ class NLQS:
                     record = dict(zip(columns_to_use, row))
                     if uri_column in record:
                         uris.append(str(record[uri_column]))
-                        del record[uri_column]  # Remove the URI column data from the record
+                        # Remove the URI column data from the record
+                        del record[uri_column]
                     records.append(record)
 
                 # Create the result object

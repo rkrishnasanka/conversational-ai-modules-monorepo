@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from typing import LiteralString
 
 from dotenv import load_dotenv
 
@@ -16,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
 
-def get_json_output_prompt() -> LiteralString:
+def get_json_output_prompt() -> str:
     """
     Provide the JSON output prompt for the Tree of Thoughts process.
 
@@ -57,7 +56,7 @@ def get_json_output_prompt() -> LiteralString:
     """
 
 
-def get_classification_prompt() -> LiteralString:
+def get_classification_prompt() -> str:
     """
     Provide the classification prompt for intent classification.
 

@@ -67,3 +67,8 @@ target/
 chroma
 
 .env
+
+.model_cache
+
+# Mac Trash
+.DS_Store

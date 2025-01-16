@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple, Union
 import chromadb
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI, OpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI, OpenAI
 
 # Create a logger object
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def summarize(
     numerical_columns: List[str],
     categorical_columns: List[str],
     descriptive_columns: List[str],
-    llm: Union[ChatOpenAI, OpenAI],
+    llm: Union[ChatOpenAI, OpenAI, AzureChatOpenAI],
 ) -> SummarizedInput:
     """Summarizes the user input and returns the summary, quantitative data, and qualitative data, along with the user requested columns in a JSON format.
 
@@ -67,7 +67,7 @@ def summarize(
         column_descriptions (dict[str, str]): The column descriptions.
         numerical_columns (list[str]): The numerical columns.
         categorical_columns (list[str]): The categorical columns.
-        llm (Union[ChatOpenAI, OpenAI]): The LLM object.(Contains the details of the language we are using.)
+        llm (Union[ChatOpenAI, OpenAI,, AzureChatOpenAI]): The LLM object.(Contains the details of the language we are using.)
 
     Returns:
         dict: {
@@ -184,7 +184,8 @@ def summarize(
         numerical_data=summarized_input_dict.get("numerical_data", {}),
         categorical_data=summarized_input_dict.get("categorical_data", {}),
         descriptive_data=summarized_input_dict.get("descriptive_data", {}),
-        user_requested_columns=summarized_input_dict.get("user_requested_columns", []),
+        user_requested_columns=summarized_input_dict.get(
+            "user_requested_columns", []),
         user_intent=summarized_input_dict.get("user_intent", ""),
     )
 
@@ -263,7 +264,8 @@ def qualitative_search(collection: chromadb.Collection, data: Dict[str, str], pr
     print(f"ids_per_column: {ids_per_column}")
 
     # Flatten the list of lists into a single list of unique IDs
-    all_ids = list(set([id_val for sublist in ids_per_column.values() for id_val in sublist]))
+    all_ids = list(
+        set([id_val for sublist in ids_per_column.values() for id_val in sublist]))
     return all_ids
 
 

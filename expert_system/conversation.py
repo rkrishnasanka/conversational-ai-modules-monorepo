@@ -5,10 +5,8 @@ from chromadb.config import Settings
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_chroma import Chroma
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from pydantic.v1 import SecretStr
 
 from expert_system.chat_reference import ChatReference
 from expert_system.parameters import (
@@ -19,6 +17,7 @@ from expert_system.parameters import (
     VECTORDB_USERNAME,
 )
 from expert_system.prompts import EXPERT_PROMPT_CONCISE, EXPERT_PROMPT_VERBOSE
+from utils.llm import get_default_embedding_function, get_default_llm
 
 
 def query_template(
@@ -78,7 +77,7 @@ class Chatbot:
                 chroma_client_auth_credentials=f"{VECTORDB_USERNAME}:{VECTORDB_PASSWORD}",
             ),
         )
-        openai_embedding_function = OpenAIEmbeddings(api_key=SecretStr(OPENAI_API_KEY))
+        openai_embedding_function = get_default_embedding_function()
         self.vectordb = Chroma(
             collection_name="ced-library",
             embedding_function=openai_embedding_function,
@@ -86,18 +85,13 @@ class Chatbot:
         )
 
         # Test the connection
-        print(f"Testing connection to VectorDB (find a number > 0):{chroma_client.heartbeat()}")
+        print(
+            f"Testing connection to VectorDB (find a number > 0):{chroma_client.heartbeat()}")
 
     def initialize_qachain(self) -> None:
         """Initializes the QA Chain"""
 
-        self.llm = ChatOpenAI(
-            api_key=SecretStr(OPENAI_API_KEY),
-            temperature=0.1,
-            model="gpt-4",
-            verbose=True,
-            max_tokens=1500,
-        )
+        self.llm = get_default_llm()
 
     def converse(
         self,

@@ -16,3 +16,9 @@ This monorepo is used to hold all the python modules used in the conversational 
 - Name all classes CamelCase with captials starts
 - Avoid having `global` variables for libaries. Only applications are allowed to have them
   
+
+## Exporting the Environemtn variables for the backend
+
+```sh
+set -o allexport; source .env; set +o allexport
+```
