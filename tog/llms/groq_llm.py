@@ -24,7 +24,7 @@ class GroqLLM(BaseLLM):
         self.client = Groq(api_key=api_key or GROQ_API_KEY)
         self.model_name = model_name
     
-    def generate(self, prompt: str, **kwargs) -> str:
+    def generate(self, messages: List[Dict], **kwargs) -> str:
         """
         Generate a response for the given prompt using Groq.
         
@@ -37,12 +37,12 @@ class GroqLLM(BaseLLM):
         """
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             **kwargs
         )
         return response.choices[0].message.content
     
-    def generate_stream(self, prompt: str, **kwargs):
+    def generate_stream(self, messages: List[Dict], **kwargs):
         """
         Stream the response for the given prompt using Groq.
         
@@ -55,7 +55,7 @@ class GroqLLM(BaseLLM):
         """
         stream = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             stream=True,
             **kwargs
         )
@@ -99,10 +99,12 @@ class GroqLLM(BaseLLM):
 if __name__ == "__main__":
     # Initialize the GroqLLM with a specific model
     llm = GroqLLM("mixtral-8x7b-32768")
+
+    messages = [{"role": "user", "content": "Explain quantum computing in simple terms."}]
     
     # Simple generation example
     response = llm.generate(
-        prompt="Explain quantum computing in simple terms.",
+        messages=messages,
         temperature=0.5,
         max_tokens=500
     )

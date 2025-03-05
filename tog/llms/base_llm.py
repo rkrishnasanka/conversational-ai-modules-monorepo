@@ -20,7 +20,7 @@ class BaseLLM(ABC):
         self.model_params = kwargs
     
     @abstractmethod
-    async def generate(self, prompt: str, **kwargs) -> str:
+    async def generate(self, messages: List[Dict], **kwargs) -> str:
         """
         Generate a response for the given prompt.
         
@@ -34,7 +34,7 @@ class BaseLLM(ABC):
         pass
     
     @abstractmethod
-    async def generate_stream(self, prompt: str, **kwargs):
+    async def generate_stream(self, messages: List[Dict], **kwargs):
         """
         Stream the response for the given prompt.
         
