@@ -69,3 +69,4 @@ chroma
 .env
 *.html
 *.json
+*.nt
