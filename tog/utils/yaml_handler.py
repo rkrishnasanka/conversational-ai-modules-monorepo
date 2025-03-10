@@ -90,8 +90,7 @@ class YamlHandler:
                 original[key] = value
     
     @staticmethod
-    def get_prompt(file_path: Union[str, Path], prompt_key: str, 
-                  default: Optional[str] = None) -> Optional[str]:
+    def get_prompt(file_path: Union[str, Path], prompt_key: str) -> Optional[str]:
         """
         Get a specific prompt from a YAML file.
         
@@ -110,7 +109,7 @@ class YamlHandler:
             for key in keys:
                 data = data.get(key, {})
                 
-            return data if data else default
+            return data
             
         except (FileNotFoundError, yaml.YAMLError):
-            return default
+            raise ValueError(f"Error reading prompt: {prompt_key}")
