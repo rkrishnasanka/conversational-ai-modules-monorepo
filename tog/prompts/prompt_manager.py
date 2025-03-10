@@ -2,7 +2,6 @@ from pathlib import Path
 import yaml
 from typing import Dict
 
-
 class PromptManager:
     """
     A class to manage prompts stored in YAML files in the prompts directory.

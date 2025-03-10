@@ -20,12 +20,12 @@ class BaseLLM(ABC):
         self.model_params = kwargs
     
     @abstractmethod
-    async def generate(self, messages: List[Dict], **kwargs) -> str:
+    def generate(self, messages: List[Dict], **kwargs) -> str:
         """
-        Generate a response for the given prompt.
+        Generate a response for the given messages.
         
         Args:
-            prompt: The input text to generate a response for
+            messages: List of message dictionaries representing the conversation
             **kwargs: Additional generation parameters
             
         Returns:
@@ -34,12 +34,12 @@ class BaseLLM(ABC):
         pass
     
     @abstractmethod
-    async def generate_stream(self, messages: List[Dict], **kwargs):
+    def generate_stream(self, messages: List[Dict], **kwargs):
         """
-        Stream the response for the given prompt.
+        Stream the response for the given messages.
         
         Args:
-            prompt: The input text to generate a response for
+            messages: List of message dictionaries representing the conversation
             **kwargs: Additional generation parameters
             
         Returns:
@@ -48,7 +48,7 @@ class BaseLLM(ABC):
         pass
     
     @abstractmethod
-    async def batch_generate(self, prompts: List[str], **kwargs) -> List[str]:
+    def batch_generate(self, prompts: List[str], **kwargs) -> List[str]:
         """
         Generate responses for multiple prompts in batch mode.
         

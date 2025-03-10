@@ -1,4 +1,5 @@
 import os
+from pprint import pprint
 from typing import Dict, Any, List
 from groq import Groq
 from tog.llms.base_llm import BaseLLM
@@ -29,7 +30,7 @@ class GroqLLM(BaseLLM):
         Generate a response for the given prompt using Groq.
         
         Args:
-            prompt: The input text to generate a response for
+            messages: List of message dictionaries representing the conversation
             **kwargs: Additional generation parameters
             
         Returns:
@@ -40,6 +41,7 @@ class GroqLLM(BaseLLM):
             messages=messages,
             **kwargs
         )
+        pprint(response)
         return response.choices[0].message.content
     
     def generate_stream(self, messages: List[Dict], **kwargs):
@@ -47,7 +49,7 @@ class GroqLLM(BaseLLM):
         Stream the response for the given prompt using Groq.
         
         Args:
-            prompt: The input text to generate a response for
+            messages: List of message dictionaries representing the conversation
             **kwargs: Additional generation parameters
             
         Returns:
