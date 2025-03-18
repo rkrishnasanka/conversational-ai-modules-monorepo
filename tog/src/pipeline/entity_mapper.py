@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 import rdflib
 from rdflib import Graph
 from rdflib.plugins.sparql import prepareQuery
@@ -13,15 +13,20 @@ class EntityMapper:
     using SPARQL queries as described in the Think-On-Graph paper.
     """
     
-    def __init__(self, kg_path: str):
+    def __init__(self, kg_source: Union[str, Graph]):
         """
-        Initialize the EntityMapper with the path to a knowledge graph.
+        Initialize the EntityMapper with either a path to a knowledge graph or a Graph object.
         
         Args:
-            kg_path: Path to the knowledge graph file (.nt format)
+            kg_source: Path to the knowledge graph file (.nt format) or a Graph object
         """
         self.kg_graph = Graph()
-        self._load_knowledge_graph(kg_path)
+        
+        if isinstance(kg_source, Graph):
+            self.kg_graph = kg_source
+            print(f"Using provided Graph with {len(self.kg_graph)} triples")
+        else:
+            self._load_knowledge_graph(kg_source)
         
     def _load_knowledge_graph(self, kg_path: str) -> None:
         """
