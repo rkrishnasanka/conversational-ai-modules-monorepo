@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import List, Dict, Any, Optional, Union
 import rdflib
 from rdflib import Graph
@@ -6,6 +7,7 @@ from rdflib.plugins.sparql import prepareQuery
 
 from tog.src.models.entity import Entity
 
+logger = logging.getLogger(__name__)
 
 class EntityMapper:
     """
@@ -24,7 +26,7 @@ class EntityMapper:
         
         if isinstance(kg_source, Graph):
             self.kg_graph = kg_source
-            print(f"Using provided Graph with {len(self.kg_graph)} triples")
+            logger.info(f"Using provided Graph with {len(self.kg_graph)} triples")
         else:
             self._load_knowledge_graph(kg_source)
         
@@ -39,7 +41,7 @@ class EntityMapper:
             raise FileNotFoundError(f"Knowledge graph file not found: {kg_path}")
         
         self.kg_graph.parse(kg_path, format="nt")
-        print(f"Loaded knowledge graph with {len(self.kg_graph)} triples")
+        logger.info(f"Loaded knowledge graph with {len(self.kg_graph)} triples")
     
     def map_entities(self, extracted_entities: List[Entity]) -> List[Dict[str, Any]]:
         """
@@ -145,6 +147,7 @@ class EntityMapper:
 
 if __name__ == '__main__':
     # Example usage
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     kg_path = "path/to/your/knowledge_graph.nt"
     entity_mapper = EntityMapper(kg_path)
     
@@ -155,4 +158,4 @@ if __name__ == '__main__':
     
     mapped_entities = entity_mapper.map_entities(extracted_entities)
     for entity in mapped_entities:
-        print(entity)
+        logger.info(entity)
