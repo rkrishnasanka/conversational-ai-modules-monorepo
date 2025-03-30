@@ -59,7 +59,7 @@ class LLMExtractor(EntityExtractor):
             
         return entities
     
-class GroqEnityExtractor(LLMExtractor):
+class GroqEntityExtractor(LLMExtractor):
     def __init__(self, model_name: str):
         super().__init__(model_name)
 
@@ -69,6 +69,6 @@ class GroqEnityExtractor(LLMExtractor):
 
 if __name__ == '__main__':
     # Example usage
-    llm_extractor = GroqEnityExtractor("mixtral-8x7b-32768")
+    llm_extractor = GroqEntityExtractor("mixtral-8x7b-32768")
     entities = llm_extractor.extract_entities("Who is the father of Deep Learning.")
     print(entities)
