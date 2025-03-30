@@ -253,3 +253,81 @@ class RDFKnowledgeGraph(KnowledgeGraph):
             object_node = rdflib.Literal(object_)
             
         self.graph.add((subject_node, predicate_node, object_node))
+
+class Neo4JKnowledgeGraph(KnowledgeGraph):
+    """
+    Neo4J-based implementation of a knowledge graph.
+    """
+    
+    def __init__(self, uri: str, user: str, password: str, **kwargs):
+        """
+        Initialize the Neo4J knowledge graph.
+        
+        Args:
+            uri: URI of the Neo4J database
+            user: Username for authentication
+            password: Password for authentication
+            **kwargs: Additional arguments for Neo4J connection
+        """
+        import neo4j
+        
+        self.driver = neo4j.GraphDatabase.driver(uri, auth=(user, password), **kwargs)
+    
+    def query(self, query_str: str, **kwargs) -> List[Dict[str, Any]]:
+        """
+        Execute a Cypher query against the Neo4J knowledge graph.
+        
+        Args:
+            query_str: Cypher query string
+            **kwargs: Additional arguments for query execution
+            
+        Returns:
+            List of result dictionaries
+        """
+        with self.driver.session() as session:
+            results = session.run(query_str, **kwargs)
+            return [dict(record) for record in results]
+    
+    def get_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get entity details by ID (URI).
+        
+        Args:
+            entity_id: URI of the entity
+            
+        Returns:
+            Dictionary containing entity information or None if not found
+        """
+        query_str = """
+        MATCH (e)
+        WHERE id(e) = %s
+        RETURN e
+        """ % entity_id
+        
+        results = self.query(query_str)
+        
+        if not results:
+            return None
+        
+        return results[0].get('e')
+    
+    def get_entity_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """
+        Find an entity by name (label).
+        
+        Args:
+            name: Name/label of the entity
+            
+        Returns:
+            Dictionary containing entity information or None if not found
+        """
+        query_str = """
+        MATCH (e {name: "%s"})
+        RETURN e
+        LIMIT 1
+        """ % name
+        
+        results = self.query(query_str)
+        
+        if not results:
+            return None
