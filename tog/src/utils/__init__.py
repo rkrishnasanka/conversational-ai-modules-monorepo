@@ -1,1 +1,1 @@
-from prompt_manager import PromptManager
+from .prompt_loader import PromptLoader

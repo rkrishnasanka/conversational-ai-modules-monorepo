@@ -3,26 +3,30 @@ import yaml
 from typing import Dict
 from tog.config import PROMPTS_DIR  # Import from config file
 
-class PromptManager:
+class PromptLoader:
     """
     A class to manage prompts stored in YAML files in the prompts directory.
     Each YAML file should contain at least 'system' and 'user' keys.
     """
 
-    PROMPTS_DIR = PROMPTS_DIR  # Use the path from config
+    def __init__(self, prompt_dir=PROMPTS_DIR):
+        """Initialize with prompt directory path.
+        
+        Args:
+            prompt_dir: Path to the directory containing prompt files
+        """
+        self.prompt_dir = prompt_dir
 
-    @classmethod
-    def set_prompt_dir(cls, prompt_dir: str):
+    def set_prompt_dir(self, prompt_dir: str):
         """
         Set the directory where prompt files are stored.
 
         Args:
             prompt_dir: Path to the directory containing prompt files
         """
-        cls.PROMPTS_DIR = prompt_dir
+        self.prompt_dir = prompt_dir
 
-    @classmethod
-    def get_prompt(cls, filename: str, directory: str = None) -> Dict[str, str]:
+    def get_prompt(self, filename: str, directory: str = None) -> Dict[str, str]:
         """
         Get a prompt from a YAML file.
 
@@ -39,7 +43,7 @@ class PromptManager:
 
         # Use the default prompt directory if none is provided
         if directory is None:
-            prompt_dir = cls.PROMPTS_DIR
+            prompt_dir = self.prompt_dir
         else:
             prompt_dir = directory
 
@@ -65,8 +69,7 @@ class PromptManager:
         except FileNotFoundError:
             raise FileNotFoundError(f"Prompt file not found: {filepath}")
         
-    @classmethod
-    def list_prompts(cls) -> list:
+    def list_prompts(self) -> list:
         """
         List all available prompt files in the prompts directory.
 
@@ -75,19 +78,20 @@ class PromptManager:
         """
         prompt_files = []
         # Use pathlib to list files
-        for file_path in Path(cls.PROMPTS_DIR).iterdir():
+        for file_path in Path(self.prompt_dir).iterdir():
             if file_path.is_file() and file_path.suffix == ".yaml":
                 prompt_files.append(file_path.stem)  # stem is filename without extension
         return prompt_files
 
     def __repr__(self):
-        return f"PromptManager(prompt_dir={self.PROMPTS_DIR})"
+        return f"PromptLoader(prompt_dir={self.prompt_dir})"
 
     def __str__(self):
-        return f"PromptManager(prompt_dir={self.PROMPTS_DIR})"
+        return f"PromptLoader(prompt_dir={self.prompt_dir})"
 
 # Usage
 if __name__ == "__main__":
-    print(PromptManager.get_prompt("extraction_prompt"))
+    loader = PromptLoader()
+    print(loader.get_prompt("extraction_prompt"))
     print("-" * 50)
-    print(PromptManager.list_prompts())
+    print(loader.list_prompts())
