@@ -7,7 +7,7 @@ from tog.src.llms.groq_llm import GroqLLM
 from tog.src.models.entity import Entity
 import json
 
-from tog.prompts import PromptManager
+from tog.src.utils import PromptManager
 
 class EntityExtractor(ABC):
     @abstractmethod

@@ -2,15 +2,16 @@ from dataclasses import dataclass
 
 @dataclass
 class Entity:
+    """A class representing an entity."""
+    id: str
     name: str
     type: str
+    description: str = None
     metadata: dict = None
 
-ENTITY_SCHEMA = """
-                Entity Schema:
-                - name (str): The name of the entity
-                - type (str): The type of entity
-                - metadata (dict, optional): Additional information about the entity
-                """
-
-
+@dataclass
+class RDFEntity(Entity):
+    """A class representing an RDF entity."""
+    uri: str
+    graph: str = None
+    label: str = None

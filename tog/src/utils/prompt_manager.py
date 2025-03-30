@@ -1,6 +1,7 @@
 from pathlib import Path
 import yaml
 from typing import Dict
+from tog.config import PROMPTS_DIR  # Import from config file
 
 class PromptManager:
     """
@@ -8,8 +9,9 @@ class PromptManager:
     Each YAML file should contain at least 'system' and 'user' keys.
     """
 
-    PROMPTS_DIR = Path(__file__).resolve().parent
+    PROMPTS_DIR = PROMPTS_DIR  # Use the path from config
 
+    @classmethod
     def set_prompt_dir(cls, prompt_dir: str):
         """
         Set the directory where prompt files are stored.
@@ -37,15 +39,15 @@ class PromptManager:
 
         # Use the default prompt directory if none is provided
         if directory is None:
-            cls.prompt_dir = cls.PROMPTS_DIR
+            prompt_dir = cls.PROMPTS_DIR
         else:
-            cls.prompt_dir = directory
+            prompt_dir = directory
 
         # Ensure the filename has .yaml extension
         if not filename.endswith(".yaml"):
             filename = f"{filename}.yaml"
 
-        filepath = Path(cls.prompt_dir) / filename
+        filepath = Path(prompt_dir) / filename
 
         try:
             with open(filepath, "r", encoding="utf-8") as file:
@@ -73,16 +75,16 @@ class PromptManager:
         """
         prompt_files = []
         # Use pathlib to list files
-        for file_path in Path(cls.prompt_dir).iterdir():
+        for file_path in Path(cls.PROMPTS_DIR).iterdir():
             if file_path.is_file() and file_path.suffix == ".yaml":
                 prompt_files.append(file_path.stem)  # stem is filename without extension
         return prompt_files
 
     def __repr__(self):
-        return f"PromptManager(prompt_dir={self.prompt_dir})"
+        return f"PromptManager(prompt_dir={self.PROMPTS_DIR})"
 
     def __str__(self):
-        return f"PromptManager(prompt_dir={self.prompt_dir})"
+        return f"PromptManager(prompt_dir={self.PROMPTS_DIR})"
 
 # Usage
 if __name__ == "__main__":
