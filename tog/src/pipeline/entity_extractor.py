@@ -7,7 +7,7 @@ from tog.src.llms.groq_llm import GroqLLM
 from tog.src.models.entity import Entity
 import json
 
-from tog.src.utils import PromptManager
+from tog.src.utils import PromptLoader
 
 class EntityExtractor(ABC):
     @abstractmethod
@@ -18,6 +18,7 @@ class EntityExtractor(ABC):
 class LLMExtractor(EntityExtractor):
     def __init__(self, model_name: str):
         self.llm: BaseLLM = self.initialize_llm(model_name)
+        self.prompt_loader = PromptLoader()
         pass
 
     @abstractmethod
@@ -26,7 +27,7 @@ class LLMExtractor(EntityExtractor):
 
     def extract_entities(self, text: str) -> List[Entity]:
         # Get the extraction prompt
-        prompt = PromptManager.get_prompt("extraction_prompt")
+        prompt = self.prompt_loader.get_prompt("extraction_prompt")
 
         # Extract the system and user prompts
         system_prompt = prompt["system"]
