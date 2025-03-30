@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 from pprint import pprint
 from typing import List
 
-from tog.llms.base_llm import BaseLLM
-from tog.llms.groq_llm import GroqLLM
+from tog.src.llms.base_llm import BaseLLM
+from tog.src.llms.groq_llm import GroqLLM
 from tog.src.models.entity import Entity
 import json
 
