@@ -142,3 +142,32 @@ class EntityPruneResponse(BaseModel):
             return cls(entities=entities_dict)
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse JSON from output: {str(e)}")
+        
+class ReasoningResponse(BaseModel):
+    """
+    Pydantic model to validate the response from the reasoning prompt.
+    The response should indicate whether the knowledge is sufficient to answer a query.
+    """
+    is_sufficient: bool = Field(..., description="Whether the knowledge is sufficient to answer the query")
+
+    @classmethod
+    def from_reasoning_output(cls, output: str) -> 'ReasoningResponse':
+        """
+        Parse the reasoning output into a ReasoningResponse object.
+        
+        Args:
+            output: The raw output from the reasoning prompt
+            
+        Returns:
+            ReasoningResponse object
+        """
+        # Clean the output and extract the yes/no answer
+        output = output.strip().lower()
+        
+        # Look for "yes" or "no" in the response
+        if 'yes' in output:
+            return cls(is_sufficient=True)
+        elif 'no' in output:
+            return cls(is_sufficient=False)
+        else:
+            raise ValueError("Could not determine if knowledge is sufficient. Expected 'Yes' or 'No'.")
