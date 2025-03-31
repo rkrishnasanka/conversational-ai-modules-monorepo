@@ -171,3 +171,35 @@ class ReasoningResponse(BaseModel):
             return cls(is_sufficient=False)
         else:
             raise ValueError("Could not determine if knowledge is sufficient. Expected 'Yes' or 'No'.")
+
+class GenerationResponse(BaseModel):
+    """
+    Pydantic model to validate the response from the generation prompt.
+    The response should be a natural language answer based on knowledge triples.
+    """
+    answer: str = Field(..., description="Generated answer to the user query")
+
+    @field_validator('answer')
+    def check_non_empty(cls, value):
+        if not value.strip():
+            raise ValueError("Answer cannot be empty")
+        return value
+
+    @classmethod
+    def from_generation_output(cls, output: str) -> 'GenerationResponse':
+        """
+        Parse the generation output into a GenerationResponse object.
+        
+        Args:
+            output: The raw output from the generation prompt
+            
+        Returns:
+            GenerationResponse object
+        """
+        # Clean the output
+        answer = output.strip()
+        
+        # Remove any prefixes like "A:" that might be included in the response
+        answer = re.sub(r'^A:\s*', '', answer)
+        
+        return cls(answer=answer)
