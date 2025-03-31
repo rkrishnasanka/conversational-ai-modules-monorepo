@@ -92,3 +92,53 @@ class RelationPruneResponse(BaseModel):
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse JSON from output: {str(e)}")
         
+class EntityPruneResponse(BaseModel):
+    """
+    Pydantic model to validate the response from the entity pruning prompt.
+    The response should be a JSON object mapping entities to relevance scores.
+    """
+    entities: dict[str, float] = Field(..., description="Dictionary mapping entities to their relevance scores")
+
+    @field_validator('entities')
+    def check_scores_sum_to_one(cls, value):
+        if not value:
+            raise ValueError("At least one entity must be returned")
+        
+        total = sum(value.values())
+        if not 0.99 <= total <= 1.01:  # Allow for minor floating-point errors
+            raise ValueError(f"Entity scores must sum to 1.0, got {total}")
+        
+        return value
+
+    @classmethod
+    def from_prune_output(cls, output: str) -> 'EntityPruneResponse':
+        """
+        Parse the entity pruning output into an EntityPruneResponse object.
+        
+        Args:
+            output: The raw output from the entity pruning prompt
+            
+        Returns:
+            EntityPruneResponse object
+        """
+        # Clean the output and extract the JSON
+        # Look for content between triple backticks or find JSON directly
+        match = re.search(r'```(?:json)?\s*(.*?)\s*```', output, re.DOTALL)
+        
+        if match:
+            content = match.group(1)
+        else:
+            # Try to extract JSON directly
+            content = output.strip()
+            
+        try:
+            entities_dict = json.loads(content)
+            if not isinstance(entities_dict, dict):
+                raise ValueError("Expected a JSON object/dictionary")
+            
+            # Convert all scores to float for consistency
+            entities_dict = {k: float(v) for k, v in entities_dict.items()}
+            
+            return cls(entities=entities_dict)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse JSON from output: {str(e)}")
