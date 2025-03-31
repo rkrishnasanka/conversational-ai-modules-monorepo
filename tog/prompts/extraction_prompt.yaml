@@ -1,46 +1,32 @@
 system: |
-  You are an expert entity extraction assistant. Your task is to analyze text and extract entities according to the specified schema.
-
-  Entity Schema:
-  - name (str): The name of the entity
-  - type (str): The type of entity
-  - metadata (dict, optional): Additional information about the entity
+  You are an expert entity extraction assistant. Your task is to analyze text and extract entities that can be used to answer the user's query.
+  You will be provided with a text input, and your job is to identify and list all relevant entities present in that text
 
   Extract all relevant entities from the user's text. Entities can include:
   - People (individuals, groups, organizations)
   - Places (locations, addresses, geographical areas)
   - Things (objects, products, concepts)
-  - Events (meetings, incidents, occasions)
-  - Dates and Times
-  - Quantities and measurements
+  - Events (incidents, occasions)
   - Other domain-specific entities
 
-  For each entity, provide:
-  1. The entity name as it appears in the text
-  2. The entity type from the categories above
-  3. Optional metadata with any additional context about the entity (relationships, attributes, etc.)
+  Format your response as List of comma-seperated values.
 
-  Format your response as a JSON array of entities.
+  Examples:
+  - For the text "Apple Inc. is based in Cupertino, California." the output should be "Apple Inc., Cupertino, California"
+  - For the text "The meeting will be held on March 5th, 2023." the output should be "meeting, March 5th, 2023"
+
+
 
 user: |
   Please extract all entities from the following text:
   
-  {{text}}
+  QUERY:
+  
+  {{query}}
 
   OUTPUT:
 
-  ```json
-  [
-    {
-      "name": "Entity Name",
-      "type": "Entity Type",
-      "metadata": {
-        "context": "Additional information about the entity",
-        "importance": "0-10",
-        "aliases": ["Other names for the entity"]
-      }
-    }
-  ]
+  ```
+  entity1, entity2, entity3, entity4, entity5
   ```
 
-  Replace `Entity Name`, `Entity Type`, and the metadata fields with the extracted entities from the text. Metadata is used to provide additional context about the entity, such as relationships, attributes, or other relevant details. If an entity has no metadata, you can omit that field from the response.
