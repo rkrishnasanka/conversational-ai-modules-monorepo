@@ -65,3 +65,21 @@ class EntityExplorer(ABC):
         """
         # Placeholder for pruning logic
         return entities
+    
+class Neo4jEntityExplorer(EntityExplorer):
+    """
+    Entity explorer for Neo4j knowledge graph.
+    """
+    
+    def _get_related_entities(self, entity: Entity) -> List[Entity]:
+        """
+        Get related entities for the given entity from the Neo4j knowledge graph.
+        
+        Args:
+            entity: The entity to explore.
+            
+        Returns:
+            A list of candidate entities.
+        """
+        # Implement related entity retrieval logic using Neo4j
+        pass
