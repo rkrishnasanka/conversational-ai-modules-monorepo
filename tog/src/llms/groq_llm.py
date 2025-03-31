@@ -2,10 +2,8 @@ import os
 from pprint import pprint
 from typing import Dict, Any, List
 from groq import Groq
-from tog.llms.base_llm import BaseLLM
-
-# Groq Configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+from tog.src.llms.base_llm import BaseLLM
+from dotenv import load_dotenv
 
 class GroqLLM(BaseLLM):
     """
@@ -21,8 +19,10 @@ class GroqLLM(BaseLLM):
             api_key: The Groq API key (defaults to environment variable if not provided)
             **kwargs: Additional model-specific configuration parameters
         """
+        load_dotenv()  # Load environment variables from .env file
+        
         super().__init__(model_name, **kwargs)
-        self.client = Groq(api_key=api_key or GROQ_API_KEY)
+        self.client = Groq(api_key=api_key or os.getenv("GROQ_API_KEY"))
         self.model_name = model_name
     
     def generate(self, messages: List[Dict], **kwargs) -> str:
@@ -41,7 +41,7 @@ class GroqLLM(BaseLLM):
             messages=messages,
             **kwargs
         )
-        pprint(response)
+        # pprint(response)
         return response.choices[0].message.content
     
     def generate_stream(self, messages: List[Dict], **kwargs):
