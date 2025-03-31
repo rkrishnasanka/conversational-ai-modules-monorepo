@@ -20,7 +20,7 @@ class EntityExplorer(ABC):
         self.prompt_loader = PromptLoader()
         self.logger = setup_logger(name="entity_explorer", log_filename="entity_explorer.log")
     
-    def get_entities(self, entity: Entity) -> List[Entity]:
+    def explore_entities(self, entity: Entity) -> List[Entity]:
         """
         Get entities related to the given entity in the knowledge graph.
         
@@ -63,7 +63,7 @@ class EntityExplorer(ABC):
         Returns:
             A pruned list of entities.
         """
-        # Placeholder for pruning logic
+        # Placeholder for pruning logic it is same for all explorers
         return entities
     
 class Neo4jEntityExplorer(EntityExplorer):
