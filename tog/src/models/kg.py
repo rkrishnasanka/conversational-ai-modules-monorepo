@@ -26,6 +26,7 @@ class KnowledgeGraph(ABC):
     def size(self) -> int:
         """Get the size of the knowledge graph"""
         pass
+    
 class Neo4jKnowledgeGraph(KnowledgeGraph):
     """
     Knowledge graph implementation using Neo4j.
