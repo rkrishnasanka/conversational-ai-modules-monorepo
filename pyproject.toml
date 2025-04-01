@@ -32,6 +32,7 @@ seaborn = "^0.13.2"
 tabulate = "^0.9.0"
 pypdf2 = "^3.0.1"
 spacy = "^3.8.4"
+python-levenshtein = "^0.27.1"
 
 [tool.poetry.group.dev.dependencies]
 flask_testing = "0.8.0"
