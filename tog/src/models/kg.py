@@ -32,8 +32,14 @@ class Neo4jKnowledgeGraph(KnowledgeGraph):
     Knowledge graph implementation using Neo4j.
     """
     
-    def __init__(self, uri: str, user: str, password: str, **kwargs):
+    def __init__(self, uri: str = None, user: str = None, password: str = None, **kwargs):
         import neo4j
+        load_dotenv()  # Load environment variables from .env file
+        uri = uri or os.getenv("NEO4J_URI")
+        user = user or os.getenv("NEO4J_USER")
+        password = password or os.getenv("NEO4J_PASSWORD")
+        if not uri or not user or not password:
+            raise ValueError("Neo4j connection parameters are required")
         self.driver = neo4j.GraphDatabase.driver(uri, auth=(user, password))
         self.session = None
     
