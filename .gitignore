@@ -72,3 +72,18 @@ chroma
 
 # Mac Trash
 .DS_Store
+*.html
+*.json
+
+# RDF knowledge graph files
+*.nt
+*.rdf
+*.owl
+*.ttl
+*.n3
+*.trig
+*.nq
+*.jsonld
+*-kg/
+*_kg/
+knowledge_graphs/
