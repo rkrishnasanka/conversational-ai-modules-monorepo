@@ -36,7 +36,7 @@ class Neo4jKnowledgeGraph(KnowledgeGraph):
         import neo4j
         load_dotenv()  # Load environment variables from .env file
         uri = uri or os.getenv("NEO4J_URI")
-        user = user or os.getenv("NEO4J_USER")
+        user = user or os.getenv("NEO4J_USERNAME")
         password = password or os.getenv("NEO4J_PASSWORD")
         if not uri or not user or not password:
             raise ValueError("Neo4j connection parameters are required")
