@@ -10,7 +10,7 @@ def setup_logger(
     log_level=logging.DEBUG,
     when="midnight",
     backup_count=7,
-    fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    fmt="%(asctime)s - %(message)s"
 ):
     """
     Sets up a logger with both console and TimedRotatingFileHandler.
