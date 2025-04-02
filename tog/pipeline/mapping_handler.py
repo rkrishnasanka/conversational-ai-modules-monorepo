@@ -61,6 +61,7 @@ class Neo4jMappingHandler(MappingHandler):
                     self.logger.debug(f"No fuzzy matches found for entity: {entity_name}")
                     return None
                 
+                self.logger.debug(f"Fuzzy match results: {results}")
                 # Use fuzzywuzzy to find the best match among the candidates
                 entity_names = [result['name'] for result in results]
                 best_match, score = process.extractOne(entity_name, entity_names)

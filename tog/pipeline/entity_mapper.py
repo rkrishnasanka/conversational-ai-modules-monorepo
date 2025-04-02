@@ -1,14 +1,9 @@
-import os
-from pprint import pprint
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
-from typing import List, Dict, Any, Optional
-from tog.llms.base_llm import BaseLLM
-from tog.llms.azure_openai_llm import AzureOpenAILLM
-from tog.pipeline.mapping_handler import MappingHandler, Neo4jMappingHandler
+from typing import List
+from tog.pipeline import MappingHandler
 from tog.utils.logger import setup_logger
 from tog.models.entity import Entity
-from tog.models.kg import KnowledgeGraph, Neo4jKnowledgeGraph
+from tog.models.kg import KnowledgeGraph
 
 # Load environment variables
 load_dotenv()
@@ -80,20 +75,3 @@ class EntityMapper:
             self.logger.error(f"Error using mapping handler for entity '{extracted_entity}': {str(e)}")
             return None
         
-if __name__ == "__main__":
-    # Example usage
-    kg = Neo4jKnowledgeGraph()
-    mapping_handler = Neo4jMappingHandler(kg=kg)
-    
-    entity_mapper = EntityMapper(kg, mapping_handler)
-    
-    # Example extracted entities
-    extracted_entities = ["CBD", "anxiety"]
-    
-    mapped_entities = entity_mapper.map_entities(extracted_entities)
-    
-    print("-" * 50)
-    pprint("Mapped Entities:")
-    for entity in mapped_entities:
-        pprint(f"ID: {entity.id}, Name: {entity.name}, Type: {entity.type}")
-        pprint(f"Metadata: {entity.metadata}")

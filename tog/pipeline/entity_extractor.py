@@ -30,7 +30,7 @@ class LLMExtractor(EntityExtractor):
     def initialize_llm(self) -> BaseLLM:
         pass
 
-    def extract_entities(self, text: str) -> List[Entity]:
+    def extract_entities(self, text: str) -> List[str]:
         logger.debug(f"Extracting entities from text: {text[:50]}...")
         
         # Get the extraction prompt
@@ -71,13 +71,3 @@ class GroqEntityExtractor(LLMExtractor):
         logger.debug(f"Creating GroqLLM instance with model: {model_name}")
         return GroqLLM(model_name)
     
-
-if __name__ == '__main__':
-    # Example usage
-    llm_extractor = GroqEntityExtractor("llama-3.3-70b-versatile")
-    sample_text = """OpenAI's GPT-4 was released in March 2023 by Sam Altman's team. The model has 1.76 trillion parameters according to some estimates."""
-    
-    logger.info("Extracting entities from sample text")
-    entities = llm_extractor.extract_entities(sample_text)
-    pprint(entities)
-    print(len(entities))
