@@ -31,7 +31,7 @@ class RelationExplorer(ABC):
 
         pruned_relations: List[Relation] = self._prune_relations(candidate_relations)
         self.logger.debug(f"Pruned relations for {entity.name}: {pruned_relations}")
-
+        
         return pruned_relations
     
     @abstractmethod
