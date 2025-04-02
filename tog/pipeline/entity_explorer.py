@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from tog.src.llms.base_llm import BaseLLM
-from tog.src.models.entity import Entity
-from tog.src.models.kg import KnowledgeGraph
-from tog.src.utils.logger import setup_logger
-from tog.src.utils.prompt_loader import PromptLoader
+from tog.llms.base_llm import BaseLLM
+from tog.models.entity import Entity
+from tog.models.kg import KnowledgeGraph
+from tog.utils.logger import setup_logger
+from tog.utils.prompt_loader import PromptLoader
 
 
 class EntityExplorer(ABC):

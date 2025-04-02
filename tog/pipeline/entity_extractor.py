@@ -2,14 +2,14 @@ from abc import ABC, abstractmethod
 from pprint import pprint
 from typing import List
 
-from tog.src.llms.base_llm import BaseLLM
-from tog.src.llms.groq_llm import GroqLLM
-from tog.src.models.entity import Entity
+from tog.llms.base_llm import BaseLLM
+from tog.llms.groq_llm import GroqLLM
+from tog.models.entity import Entity
 import json
 
-from tog.src.utils import PromptLoader
-from tog.src.models.response import ExtractionResponse
-from tog.src.utils.logger import setup_logger
+from tog.utils import PromptLoader
+from tog.models.response import ExtractionResponse
+from tog.utils.logger import setup_logger
 
 # Set up logger for this module
 logger = setup_logger(name="entity_extractor", log_filename="entity_extractor.log")

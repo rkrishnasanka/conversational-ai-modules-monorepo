@@ -2,7 +2,7 @@ import os
 from pprint import pprint
 from typing import Dict, Any, List
 from groq import Groq
-from tog.src.llms.base_llm import BaseLLM
+from tog.llms.base_llm import BaseLLM
 from dotenv import load_dotenv
 
 class GroqLLM(BaseLLM):
@@ -113,5 +113,4 @@ if __name__ == "__main__":
     print("Generated response:")
     print(response)
     print("\n" + "-"*50 + "\n")
-    
-    
+

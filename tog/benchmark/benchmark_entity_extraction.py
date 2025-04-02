@@ -10,7 +10,7 @@ import logging
 
 # Add parent directory to path to import the EntityExtractor
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.pipeline.entity_extractor import EntityExtractor
+from tog.pipeline.entity_extractor import EntityExtractor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

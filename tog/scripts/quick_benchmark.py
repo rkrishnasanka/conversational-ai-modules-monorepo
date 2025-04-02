@@ -29,7 +29,7 @@ def run_quick_benchmark():
     """Run a quick benchmark on entity extraction"""
     try:
         # Import entity extractor
-        from tog.src.entity_extraction import EntityExtractor
+        from tog.entity_extraction import EntityExtractor
         
         # Create extractor
         extractor = EntityExtractor()

@@ -16,8 +16,8 @@ import backoff
 # Add parent directory to path to import tog modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tog.src.pipeline.entity_extractor import GroqEnityExtractor
-from tog.src.models.entity import Entity
+from tog.pipeline.entity_extractor import GroqEntityExtractor
+from tog.models.entity import Entity
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -27,7 +27,7 @@ class EntityExtractorBenchmark:
     def __init__(self, model_name: str, test_data_path: str = None, output_dir: str = "./benchmark_results",
                  max_retries: int = 5, initial_wait_time: float = 2.0, max_wait_time: float = 60.0,
                  token_cost_per_1k: float = 0.0):
-        self.extractor = GroqEnityExtractor(model_name)
+        self.extractor = GroqEntityExtractor(model_name)
         self.test_data = self._load_test_data(test_data_path) if test_data_path else self._get_default_test_data()
         self.output_dir = output_dir
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
