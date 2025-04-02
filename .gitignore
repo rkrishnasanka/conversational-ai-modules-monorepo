@@ -87,3 +87,7 @@ chroma
 *-kg/
 *_kg/
 knowledge_graphs/
+
+# ignore logs
+
+logs/
