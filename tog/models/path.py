@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 import heapq
 from typing import List
-from tog.src.models.entity import Entity
-from tog.src.models.relation import Relation
-from tog.src.models.triple import Triple
+from tog.models.entity import Entity
+from tog.models.relation import Relation
+from tog.models.triple import Triple
 
 @dataclass
 class Path:
