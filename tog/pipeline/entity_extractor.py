@@ -4,6 +4,7 @@ from typing import List
 
 from tog.llms.base_llm import BaseLLM
 from tog.llms.groq_llm import GroqLLM
+from tog.llms.azure_openai_llm import AzureOpenAILLM
 from tog.models.entity import Entity
 import json
 
@@ -63,14 +64,38 @@ class LLMExtractor(EntityExtractor):
         return entities
     
 class GroqEntityExtractor(LLMExtractor):
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str, api_key: str = None, **kwargs):
         logger.info(f"Initializing GroqEntityExtractor with model: {model_name}")
+        self.api_key = api_key
+        self.kwargs = kwargs
         super().__init__(model_name)
 
     def initialize_llm(self, model_name) -> BaseLLM:
         logger.debug(f"Creating GroqLLM instance with model: {model_name}")
-        return GroqLLM(model_name)
+        return GroqLLM(
+            model_name=model_name,
+            api_key=self.api_key,
+            **self.kwargs
+        )
     
+class AzureOpenAIEntityExtractor(LLMExtractor):
+    def __init__(self, model_name: str, api_key: str = None, endpoint: str = None, api_version: str = None, **kwargs):
+        logger.info(f"Initializing AzureOpenAIEntityExtractor with model: {model_name}")
+        self.api_key = api_key
+        self.endpoint = endpoint
+        self.api_version = api_version
+        self.kwargs = kwargs
+        super().__init__(model_name)
+
+    def initialize_llm(self, model_name) -> BaseLLM:
+        logger.debug(f"Creating AzureOpenAILLM instance with model: {model_name}")
+        return AzureOpenAILLM(
+            model_name=model_name,
+            api_key=self.api_key,
+            endpoint=self.endpoint,
+            api_version=self.api_version,
+            **self.kwargs
+        )
 
 if __name__ == '__main__':
     # Example usage
@@ -78,6 +103,11 @@ if __name__ == '__main__':
     sample_text = """OpenAI's GPT-4 was released in March 2023 by Sam Altman's team. The model has 1.76 trillion parameters according to some estimates."""
     
     logger.info("Extracting entities from sample text")
+    entities = llm_extractor.extract_entities(sample_text)
+    pprint(entities)
+    print(len(entities))
+    
+    llm_extractor = AzureOpenAIEntityExtractor("gpt-4o")
     entities = llm_extractor.extract_entities(sample_text)
     pprint(entities)
     print(len(entities))
