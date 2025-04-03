@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 from tog.models.entity import Entity
-from tog.models.kg import KnowledgeGraph
+from tog.kgs import KnowledgeGraph
 from fuzzywuzzy import process
 from tog.utils.logger import setup_logger
 

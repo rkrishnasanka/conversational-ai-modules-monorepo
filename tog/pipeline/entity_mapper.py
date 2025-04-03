@@ -1,14 +1,10 @@
-import os
 from pprint import pprint
 from dotenv import load_dotenv
-from neo4j import GraphDatabase
-from typing import List, Dict, Any, Optional
-from tog.llms.base_llm import BaseLLM
-from tog.llms.azure_openai_llm import AzureOpenAILLM
+from typing import List
 from tog.pipeline.mapping_handler import MappingHandler, Neo4jMappingHandler
 from tog.utils.logger import setup_logger
 from tog.models.entity import Entity
-from tog.models.kg import KnowledgeGraph, Neo4jKnowledgeGraph
+from tog.kgs import KnowledgeGraph, Neo4jKnowledgeGraph
 
 # Load environment variables
 load_dotenv()

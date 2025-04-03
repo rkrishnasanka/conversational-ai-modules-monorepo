@@ -1,7 +1,7 @@
 from abc import ABC
 
 from tog.llms.base_llm import BaseLLM
-from tog.models.kg import KnowledgeGraph
+from tog.kgs import KnowledgeGraph
 from tog.models.path import TopNPaths
 from tog.pipeline.entity_explorer import EntityExplorer
 from tog.pipeline.relation_explorer import RelationExplorer

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List
 from tog.llms.base_llm import BaseLLM
 from tog.models.entity import Entity
-from tog.models.kg import KnowledgeGraph
+from tog.kgs import KnowledgeGraph
 from tog.models.path import TopNPaths
 from tog.models.relation import Relation
 from tog.utils.logger import setup_logger

@@ -3,7 +3,7 @@ from typing import List
 
 from tog.llms.base_llm import BaseLLM
 from tog.models.entity import Entity
-from tog.models.kg import KnowledgeGraph
+from tog.kgs import KnowledgeGraph
 from tog.utils.logger import setup_logger
 from tog.utils.prompt_loader import PromptLoader
 
