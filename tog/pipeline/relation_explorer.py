@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from tog.llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from typing import Dict, List
+import logging
 from tog.models.entity import Entity
 from tog.models.relation import Relation
 
@@ -16,6 +17,7 @@ class Explorer:
         self.prune_prompt = prune_prompt
         self.prompt_params = prompt_params or {}
         self.system_prompt = system_prompt or "You are a helpful assistant."
+        self.logger = logging.getLogger(self.__class__.__name__)
 
 
 class RelationExplorer(Explorer, ABC):
@@ -32,7 +34,7 @@ class RelationExplorer(Explorer, ABC):
             llm (BaseLLM): The language model to use for exploration.
             kg (KnowledgeGraph): The knowledge graph to explore.
             query (str): Optional query string for exploration.
-            prompt (str): Optional prompt string for exploration.
+            prune_prompt (str): Optional prompt string for pruning candidates.
             prompt_params (dict): Optional parameters for the prompt.
         """
         super().__init__(llm, kg, query, prune_prompt, prompt_params)
@@ -248,15 +250,24 @@ class Neo4jRelationExplorer(RelationExplorer):
         except Exception as e:
             self.logger.error(f"Error getting candidate relations for entity {entity.name}: {e}")
             return []
-class EntityExplorer(ABC):
+
+class EntityExplorer(Explorer):
     """
     Abstract base class for entity exploration in a knowledge graph.
     """
     
-    def __init__(self, llm: BaseLLM, kg: KnowledgeGraph, query: str):
-        self.llm = llm
-        self.kg = kg
-        self.query = query
+    def __init__(self, llm: BaseLLM, kg: KnowledgeGraph, query: str, prune_prompt: str, prompt_params: Dict[str, str] = None):
+        """
+        Initialize the EntityExplorer with a language model, knowledge graph, and query.
+        
+        Args:
+            llm (BaseLLM): The language model to use for exploration.
+            kg (KnowledgeGraph): The knowledge graph to explore.
+            query (str): The query string for exploration.
+            prune_prompt (str): The prompt for pruning entities.
+            prompt_params (Dict[str, str], optional): Parameters for the prompt.
+        """
+        super().__init__(llm, kg, query, prune_prompt, prompt_params)
     
     def explore_entities(self, entity: Entity) -> List[Entity]:
         """
@@ -276,9 +287,8 @@ class EntityExplorer(ABC):
         
         return pruned_entities
     
-    # TODO: Implement the following methods
     @abstractmethod
-    def _get_related_entities(self, relation: Relation) -> List[Entity]:
+    def _get_related_entities(self, entity: Entity) -> List[Entity]:
         """
         Get related entities for the given entity from the knowledge graph.
         
@@ -302,19 +312,85 @@ class EntityExplorer(ABC):
         Returns:
             A pruned list of entities.
         """
-        # Placeholder for pruning logic it is same for all explorers
-
-        # get the prompt for pruning entities from prompts dir using the prompt loader
-        # pass the prompt to the llm and get the response
-        # parse the response and return the pruned entities
-        return entities
+        if not entities:
+            self.logger.debug("No entities to prune")
+            return []
+        
+        try:
+            # Format entities for the prompt
+            entities_text = ""
+            for i, entity in enumerate(entities, 1):
+                entity_desc = f"{entity.name} ({entity.type})"
+                if entity.metadata and "description" in entity.metadata:
+                    entity_desc += f": {entity.metadata['description']}"
+                entities_text += f"{i}. {entity_desc}\n"
+            
+            # Get the number of entities to select (default to 3 or less if fewer entities)
+            n = min(3, len(entities))
+            
+            # Format the prompt with the prune_prompt template
+            formatted_prompt = self.prune_prompt.format(
+                query=self.query,
+                n=n,
+                entities=entities_text,
+                **self.prompt_params
+            )
+            
+            # Call LLM for scoring
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": formatted_prompt}
+            ]
+            
+            response = self.llm.generate(messages, temperature=0.3)
+            
+            # Parse LLM response to extract JSON
+            import json
+            import re
+            
+            # Extract JSON from response 
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                try:
+                    scores_dict = json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    self.logger.error(f"Failed to parse LLM response as JSON: {response}")
+                    return entities[:n]  # Return top n if parsing fails
+            else:
+                self.logger.error(f"No JSON found in LLM response: {response}")
+                return entities[:n]  # Return top n if no JSON found
+            
+            # Assign scores to entities
+            scored_entities = []
+            for entity in entities:
+                # Find if this entity is in the scores
+                score = 0.0
+                for entity_name, entity_score in scores_dict.items():
+                    if entity.name.lower() in entity_name.lower():
+                        score = float(entity_score)
+                        break
+                
+                # Add score to metadata
+                entity.metadata["relevance_score"] = score
+                scored_entities.append(entity)
+            
+            # Sort by score in descending order
+            scored_entities.sort(key=lambda e: e.metadata.get("relevance_score", 0.0), reverse=True)
+            
+            # Return top n entities
+            return scored_entities[:n]
+            
+        except Exception as e:
+            self.logger.error(f"Error pruning entities: {e}")
+            # Return at most n entities if pruning fails
+            return entities[:min(3, len(entities))]
     
 class Neo4jEntityExplorer(EntityExplorer):
     """
     Entity explorer for Neo4j knowledge graph.
     """
     
-    def _get_related_entities(self, relation: Relation) -> List[Entity]:
+    def _get_related_entities(self, entity: Entity) -> List[Entity]:
         """
         Get related entities for the given entity from the Neo4j knowledge graph.
         
@@ -324,16 +400,59 @@ class Neo4jEntityExplorer(EntityExplorer):
         Returns:
             A list of candidate entities.
         """
-        # Implement related entity retrieval logic using Neo4j
-
-        # write a cypher query to get the related entities from Neo4j
-        # pass the query to the kg and get the response
-        # convert the entities to the Entity objects
-        # return the list of entities
-        pass
+        try:
+            self.logger.debug(f"Getting related entities for entity: {entity.name} (ID: {entity.id})")
+            
+            # Query to find all entities connected to the given entity
+            query = """
+            MATCH (source)-[r]-(target)
+            WHERE source.id = $entity_id AND target.id <> $entity_id
+            RETURN DISTINCT
+                target.id as id,
+                target.name as name,
+                labels(target)[0] as type,
+                properties(target) as properties
+            """
+            
+            # Execute the query using the knowledge graph
+            results = self.kg.query(query, entity_id=entity.id)
+            
+            # Convert the query results to Entity objects
+            entities = []
+            for result in results:
+                entity_id = result["id"]
+                entity_name = result["name"]
+                entity_type = result["type"]
+                
+                # Get properties from result
+                properties = result.get("properties", {})
+                
+                # Create a metadata dictionary
+                metadata = {k: v for k, v in properties.items() if k not in ["id", "name"]}
+                
+                # Create an Entity object
+                entity = Entity(
+                    id=entity_id,
+                    name=entity_name,
+                    type=entity_type,
+                    metadata=metadata
+                )
+                entities.append(entity)
+            
+            self.logger.debug(f"Found {len(entities)} related entities for entity: {entity.name}")
+            return entities
+            
+        except Exception as e:
+            self.logger.error(f"Error getting related entities for entity {entity.name}: {e}")
+            return []
 
 if __name__ == "__main__":
     # Example usage
+    import logging
+    
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG)
+    
     from tog.llms import GroqLLM
     from tog.kgs import Neo4jKnowledgeGraph
     
@@ -341,13 +460,32 @@ if __name__ == "__main__":
     kg = Neo4jKnowledgeGraph()
 
     query = "Who is the CEO of Google?"
-    prompt = "Find the CEO of {company}."
-    prompt_params = {"company": "Google"}
-    relation_explorer = Neo4jRelationExplorer(llm, kg, query, prompt, prompt_params)
-    entity = Entity(id="3be66527971910fae63df4a4342ba4e0", name="Patients", type="Demographic Group",metadata={"description": "Individuals participating in the survey about medical cannabis use."})
+    prune_prompt = """
+    Please retrieve {n} entities that contribute to answering the question and rate their contribution on a scale from 0 to 1 (the sum of the scores of {n} entities is 1). Return the result in valid JSON format.
+    
+    Q: {query}
+    Topic Entity: {entity_name}
+    Entities: 
+    {entities}
+    """
+    prompt_params = {"entity_name": "Google"}
+    
+    # Example of relation exploration
+    relation_explorer = Neo4jRelationExplorer(llm, kg, query, prune_prompt, prompt_params)
+    entity = Entity(id="3be66527971910fae63df4a4342ba4e0", name="Patients", type="Demographic Group", 
+                    metadata={"description": "Individuals participating in the survey about medical cannabis use."})
     relations = relation_explorer.explore_relations(entity)
     
     print(f"Relations for {entity.name}:")
     print("length:", len(relations))
     for relation in relations:
         print(f"- {relation.type} (ID: {relation.id})")
+    
+    # # Example of entity exploration
+    # entity_explorer = Neo4jEntityExplorer(llm, kg, query, prune_prompt, prompt_params)
+    # related_entities = entity_explorer.explore_entities(entity)
+    
+    # print(f"\nRelated entities for {entity.name}:")
+    # print("length:", len(related_entities))
+    # for related_entity in related_entities:
+    #     print(f"- {related_entity.name} ({related_entity.type})")

@@ -5,7 +5,7 @@ class Relation:
     """
     A class representing a relation between entities."""
     id: str
-    subject_id: str
-    object_id: str
+    source_id: str
+    target_id: str
     type: str
     metadata: Dict[str, Any] = field(default_factory=dict)

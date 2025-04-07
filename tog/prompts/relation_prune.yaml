@@ -3,14 +3,14 @@ system: |
   
   For each question:
   1. Identify which relations from the provided list directly contribute to answering the question
-  2. Select the top {k} most relevant relations
+  2. Select the top {n} most relevant relations
   3. Assign each relation a relevance score from 0 to 1, ensuring the sum equals 1
   4. Format your response as a valid JSON object with relations as keys and scores as values
   
   Be precise in your evaluation - only select relations that directly help answer the question.
 
 user: |
-  Please retrieve {k} relations that contribute to the question and rate their contribution on a scale from 0 to 1 (the sum of the scores of {k} relations is 1). Return the result in valid JSON format.
+  Please retrieve {n} relations that contribute to the question and rate their contribution on a scale from 0 to 1 (the sum of the scores of {n} relations is 1). Return the result in valid JSON format.
   
     Example 1:
     Q: When was Apple Inc. founded?
