@@ -1,7 +1,7 @@
 import os
 from typing import Dict, List, Any
 from dotenv import load_dotenv
-from tog.kgs import KnowledgeGraph
+from . import KnowledgeGraph
 from tog.utils.logger import setup_logger
 
 class Neo4jKnowledgeGraph(KnowledgeGraph):
@@ -43,3 +43,18 @@ class Neo4jKnowledgeGraph(KnowledgeGraph):
     def close(self):
         if self.driver is not None:
             self.driver.close()
+
+# if __name__ == "__main__":
+#     # Example usage
+#     from pprint import pprint
+#     kg = Neo4jKnowledgeGraph()
+#     query = """
+#         MATCH (subject)-[predicate]->(object)
+#         RETURN subject, type(predicate) as predicate_type, predicate, object
+#         LIMIT $limit
+#     """
+#     limit = 1
+#     results = kg.query(query, limit=limit)
+#     for result in results:
+#         print(("=" * 50)+"\n")
+#         pprint(result)
