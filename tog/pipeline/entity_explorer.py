@@ -328,26 +328,26 @@ class Neo4jEntityExplorer(EntityExplorer):
             self.logger.error(f"Error getting entity with ID {entity_id}: {e}")
             return None
     
-    def get_connected_entities_batch(self, topic_entities: List[Entity], all_relations: List[List[Relation]]) -> List[Entity]:
-        """
-        Get connected entities for multiple topic entities in batch.
+    # def get_connected_entities_batch(self, topic_entities: List[Entity], all_relations: List[List[Relation]]) -> List[Entity]:
+    #     """
+    #     Get connected entities for multiple topic entities in batch.
         
-        Args:
-            topic_entities: List of topic entities.
-            all_relations: List of relations lists, one list per topic entity.
+    #     Args:
+    #         topic_entities: List of topic entities.
+    #         all_relations: List of relations lists, one list per topic entity.
             
-        Returns:
-            A list of all connected entities.
-        """
-        all_connected_entities = []
+    #     Returns:
+    #         A list of all connected entities.
+    #     """
+    #     all_connected_entities = []
         
-        for i, entity in enumerate(topic_entities):
-            if i < len(all_relations):
-                entity_relations = all_relations[i]
-                connected_entities = self._get_connected_entities(entity, entity_relations)
-                all_connected_entities.extend(connected_entities)
+    #     for i, entity in enumerate(topic_entities):
+    #         if i < len(all_relations):
+    #             entity_relations = all_relations[i]
+    #             connected_entities = self._get_connected_entities(entity, entity_relations)
+    #             all_connected_entities.extend(connected_entities)
         
-        return all_connected_entities
+    #     return all_connected_entities
 
 
 if __name__ == "__main__":
