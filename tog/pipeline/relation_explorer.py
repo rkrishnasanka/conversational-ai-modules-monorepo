@@ -449,6 +449,7 @@ class Neo4jEntityExplorer(EntityExplorer):
 if __name__ == "__main__":
     # Example usage
     import logging
+    from tog.llms import AzureOpenAILLM
     
     # Configure logging
     logging.basicConfig(level=logging.DEBUG)
@@ -456,10 +457,10 @@ if __name__ == "__main__":
     from tog.llms import GroqLLM
     from tog.kgs import Neo4jKnowledgeGraph
     
-    llm = GroqLLM()
+    llm = AzureOpenAILLM(model_name="gpt-35-turbo")
     kg = Neo4jKnowledgeGraph()
 
-    query = "Who is the CEO of Google?"
+    query = "What are the medical benefits of Medical Cannabis?"
     prune_prompt = """
     Please retrieve {n} entities that contribute to answering the question and rate their contribution on a scale from 0 to 1 (the sum of the scores of {n} entities is 1). Return the result in valid JSON format.
     
@@ -468,12 +469,12 @@ if __name__ == "__main__":
     Entities: 
     {entities}
     """
-    prompt_params = {"entity_name": "Google"}
+    prompt_params = {"entity_name": "Chronic Pain"}
     
     # Example of relation exploration
     relation_explorer = Neo4jRelationExplorer(llm, kg, query, prune_prompt, prompt_params)
-    entity = Entity(id="3be66527971910fae63df4a4342ba4e0", name="Patients", type="Demographic Group", 
-                    metadata={"description": "Individuals participating in the survey about medical cannabis use."})
+    entity = Entity(id="192db73673d90090cf1cb7d1be13aebc", name="Chronic Pain", type="Medical Condition", 
+                    metadata={"description": "A long-lasting pain that persists beyond the usual recovery period or accompanies a chronic health condition."})
     relations = relation_explorer.explore_relations(entity)
     
     print(f"Relations for {entity.name}:")
