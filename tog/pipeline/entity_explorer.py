@@ -9,6 +9,40 @@ from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.relation import Relation
 
+
+# Configure logging to filter out noisy libraries
+def configure_logging():
+    """Configure logging to show only application logs and filter out noisy libraries."""
+    # Create a formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+                                   datefmt='%Y-%m-%d %H:%M:%S')
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Clear any existing handlers to avoid duplicate logs
+    if root_logger.handlers:
+        for handler in root_logger.handlers:
+            root_logger.removeHandler(handler)
+    
+    # Add console handler with formatter
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
+    
+    # Silence noisy libraries
+    logging.getLogger('httpcore').setLevel(logging.WARNING)
+    logging.getLogger('neo4j').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    
+    # Set explorers to DEBUG level
+    logging.getLogger('Explorer').setLevel(logging.DEBUG)
+    logging.getLogger('EntityExplorer').setLevel(logging.DEBUG)
+    logging.getLogger('Neo4jEntityExplorer').setLevel(logging.DEBUG)
+
+
 class Explorer:
     """
     Abstract base class for exploring entities and relations in a knowledge graph.
@@ -44,6 +78,7 @@ class EntityExplorer(Explorer):
         """
         super().__init__(llm, kg, query, prune_prompt, prompt_params)
         self.max_entities_per_round = max_entities_per_round
+        self.logger.info(f"Initialized EntityExplorer with query: '{query}' and max_entities_per_round: {max_entities_per_round}")
     
     def explore_entities(self, topic_entity: Entity, selected_relations: List[Relation]) -> List[Entity]:
         """
@@ -56,20 +91,35 @@ class EntityExplorer(Explorer):
         Returns:
             A list of discovered and pruned entities.
         """
-        self.logger.debug(f"Exploring entities connected to {topic_entity.name} through {len(selected_relations)} relations")
+        self.logger.info(f"===== STEP 1: Starting entity exploration for '{topic_entity.name}' =====")
+        self.logger.info(f"Using {len(selected_relations)} relations for exploration")
         
         # Step 1: Entity Discovery - Find all connected entities
+        self.logger.info("===== STEP 2: Entity Discovery - Finding connected entities =====")
         candidate_entities = self._get_connected_entities(topic_entity, selected_relations)
-        self.logger.debug(f"Found {len(candidate_entities)} candidate entities for {topic_entity.name}")
+        self.logger.info(f"Found {len(candidate_entities)} candidate entities for '{topic_entity.name}'")
+        
+        # Log found entities
+        for i, entity in enumerate(candidate_entities, 1):
+            relation_info = f"{entity.metadata.get('source_relation', 'Unknown')} ({entity.metadata.get('relation_direction', 'Unknown')})"
+            self.logger.info(f"  Entity {i}: {entity.name} ({entity.type}) - Relation: {relation_info}")
         
         # Step 2: Context Retrieval - Get contexts for candidate entities
-        # Note: In a full implementation, this would involve retrieving documents/chunks
-        # But for this implementation, we'll skip the actual document retrieval
+        self.logger.info("===== STEP 3: Context Retrieval - Getting contexts for entities =====")
+        self.logger.info("Note: Skipping actual document retrieval in this implementation")
         
         # Step 3: Entity Pruning - Select the most relevant entities
+        self.logger.info("===== STEP 4: Entity Pruning - Selecting most relevant entities =====")
         pruned_entities = self._prune_entities(candidate_entities, topic_entity)
-        self.logger.debug(f"Pruned to {len(pruned_entities)} entities for {topic_entity.name}")
+        self.logger.info(f"Pruned to {len(pruned_entities)} entities for '{topic_entity.name}'")
         
+        # Log pruned entities with scores
+        for i, entity in enumerate(pruned_entities, 1):
+            score = entity.metadata.get("relevance_score", 0.0)
+            relation_info = f"{entity.metadata.get('source_relation', 'Unknown')} ({entity.metadata.get('relation_direction', 'Unknown')})"
+            self.logger.info(f"  Selected Entity {i}: {entity.name} ({entity.type}) - Score: {score:.2f} - Relation: {relation_info}")
+        
+        self.logger.info("===== STEP 5: Entity Exploration Complete =====")
         return pruned_entities
     
     def _get_connected_entities(self, entity: Entity, relations: List[Relation]) -> List[Entity]:
@@ -83,31 +133,46 @@ class EntityExplorer(Explorer):
         Returns:
             A list of connected entities.
         """
+        self.logger.debug(f"Finding entities connected to '{entity.name}' through {len(relations)} relations")
         connected_entities = []
         
-        for relation in relations:
+        for i, relation in enumerate(relations, 1):
+            self.logger.debug(f"Processing relation {i}: {relation.type} (ID: {relation.id})")
+            
             # Determine if the given entity is the source or target in this relation
             is_source = relation.source_id == entity.id
             is_target = relation.target_id == entity.id
             
             if is_source:
                 # The entity is the source, so we need to find the target entity
+                self.logger.debug(f"'{entity.name}' is source, retrieving target entity with ID: {relation.target_id}")
                 connected_entity = self._get_entity_by_id(relation.target_id)
                 if connected_entity:
                     # Add relation metadata to the entity for later use
                     connected_entity.metadata["source_relation"] = relation.type
                     connected_entity.metadata["relation_direction"] = "outgoing"
                     connected_entities.append(connected_entity)
+                    self.logger.debug(f"Added connected entity: {connected_entity.name} (via outgoing relation)")
+                else:
+                    self.logger.warning(f"Target entity with ID {relation.target_id} not found")
             
             elif is_target:
                 # The entity is the target, so we need to find the source entity
+                self.logger.debug(f"'{entity.name}' is target, retrieving source entity with ID: {relation.source_id}")
                 connected_entity = self._get_entity_by_id(relation.source_id)
                 if connected_entity:
                     # Add relation metadata to the entity for later use
                     connected_entity.metadata["source_relation"] = relation.type
                     connected_entity.metadata["relation_direction"] = "incoming"
                     connected_entities.append(connected_entity)
+                    self.logger.debug(f"Added connected entity: {connected_entity.name} (via incoming relation)")
+                else:
+                    self.logger.warning(f"Source entity with ID {relation.source_id} not found")
+            
+            else:
+                self.logger.warning(f"Entity {entity.name} is neither source nor target in relation {relation.id}")
         
+        self.logger.debug(f"Total connected entities found: {len(connected_entities)}")
         return connected_entities
     
     @abstractmethod
@@ -135,10 +200,12 @@ class EntityExplorer(Explorer):
             A pruned list of entities.
         """
         if not entities:
-            self.logger.debug("No entities to prune")
+            self.logger.info("No entities to prune")
             return []
         
         try:
+            self.logger.debug(f"Starting entity pruning for {len(entities)} entities")
+            
             # Create a mapping from index to entity for easier reference
             entity_map = {i: entity for i, entity in enumerate(entities, 1)}
             
@@ -160,6 +227,8 @@ class EntityExplorer(Explorer):
             prompt_params = self.prompt_params.copy()
             if "entity_name" not in prompt_params:
                 prompt_params["entity_name"] = topic_entity.name
+            
+            self.logger.debug(f"Preparing pruning prompt for {n} entities out of {len(entities)}")
                 
             # Format the prompt with the prune_prompt template
             formatted_prompt = self.prune_prompt.format(
@@ -187,20 +256,21 @@ class EntityExplorer(Explorer):
                 {"role": "user", "content": formatted_prompt}
             ]
             
-            self.logger.debug(f"Sending pruning prompt to LLM: {formatted_prompt}")
+            self.logger.debug("Sending pruning prompt to LLM")
             response = self.llm.generate(messages, temperature=0.3)
-            self.logger.debug(f"LLM response: {response}")
+            self.logger.debug("Received response from LLM")
             
             # Parse LLM response to extract JSON
+            self.logger.debug("Parsing LLM response for entity scores")
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:
                 try:
                     json_str = json_match.group(0)
-                    self.logger.debug(f"Extracted JSON string: {json_str}")
+                    self.logger.debug("JSON string extracted successfully")
                     scores_dict = json.loads(json_str)
-                    self.logger.debug(f"Parsed scores: {scores_dict}")
+                    self.logger.debug(f"Scores parsed: {scores_dict}")
                 except json.JSONDecodeError as e:
-                    self.logger.error(f"Failed to parse LLM response as JSON: {e}")
+                    self.logger.warning(f"Failed to parse LLM response as JSON: {e}")
                     # Try a more aggressive approach to find valid JSON
                     try:
                         # Try to find anything that looks like a JSON object with entity names and scores
@@ -209,13 +279,14 @@ class EntityExplorer(Explorer):
                             scores_dict = {name: float(score) for name, score in score_pairs}
                             self.logger.debug(f"Extracted scores from regex: {scores_dict}")
                         else:
-                            self.logger.error("Couldn't extract scores with regex either")
+                            self.logger.warning("Couldn't extract scores with regex either")
                             return entities[:n]  # Return top n if extraction fails
                     except Exception as e2:
-                        self.logger.error(f"Alternative JSON extraction failed: {e2}")
+                        self.logger.warning(f"Alternative JSON extraction failed: {e2}")
                         return entities[:n]  # Return top n if parsing fails
             else:
                 # Try to parse response as a numbered list with scores
+                self.logger.debug("No JSON found, attempting to parse numbered list")
                 try:
                     score_pattern = r'(\d+)\.\s+([^:]+).*?score.*?(\d+\.\d+)'
                     score_matches = re.findall(score_pattern, response, re.IGNORECASE)
@@ -228,13 +299,14 @@ class EntityExplorer(Explorer):
                                 scores_dict[entity.name] = float(score_str)
                         self.logger.debug(f"Extracted scores from numbered list: {scores_dict}")
                     else:
-                        self.logger.error(f"No JSON or numbered list found in LLM response: {response}")
+                        self.logger.warning(f"No JSON or numbered list found in LLM response")
                         return entities[:n]  # Return top n if no pattern found
                 except Exception as e:
-                    self.logger.error(f"Failed to extract scores from response: {e}")
+                    self.logger.warning(f"Failed to extract scores from response: {e}")
                     return entities[:n]  # Return top n if extraction fails
             
             # Assign scores to entities - use more flexible matching
+            self.logger.debug("Assigning scores to entities")
             for entity in entities:
                 # Initialize score to 0
                 score = 0.0
@@ -254,16 +326,17 @@ class EntityExplorer(Explorer):
                 
                 # Add score to metadata
                 entity.metadata["relevance_score"] = score
-                self.logger.debug(f"Assigned score {score} to entity {entity.name}")
+                self.logger.debug(f"Assigned score {score} to entity '{entity.name}'")
             
             # Sort by score in descending order
             scored_entities = sorted(entities, key=lambda e: e.metadata.get("relevance_score", 0.0), reverse=True)
             
             # Return top n entities
+            self.logger.debug(f"Returning top {n} entities by relevance score")
             return scored_entities[:n]
             
         except Exception as e:
-            self.logger.error(f"Error pruning entities: {e}")
+            self.logger.error(f"Error pruning entities: {e}", exc_info=True)
             # Return at most n entities if pruning fails
             return entities[:min(self.max_entities_per_round, len(entities))]
 
@@ -284,6 +357,8 @@ class Neo4jEntityExplorer(EntityExplorer):
             The entity object if found, None otherwise.
         """
         try:
+            self.logger.debug(f"Retrieving entity with ID: {entity_id} from Neo4j")
+            
             # Query to find an entity by its ID
             query = """
             MATCH (e)
@@ -297,6 +372,7 @@ class Neo4jEntityExplorer(EntityExplorer):
             """
             
             # Execute the query using the knowledge graph
+            self.logger.debug(f"Executing Neo4j query for entity ID: {entity_id}")
             results = self.kg.query(query, entity_id=entity_id)
             
             if not results:
@@ -322,32 +398,12 @@ class Neo4jEntityExplorer(EntityExplorer):
                 metadata=metadata
             )
             
+            self.logger.debug(f"Successfully retrieved entity: {entity_name} ({entity_type})")
             return entity
             
         except Exception as e:
-            self.logger.error(f"Error getting entity with ID {entity_id}: {e}")
+            self.logger.error(f"Error getting entity with ID {entity_id}: {e}", exc_info=True)
             return None
-    
-    # def get_connected_entities_batch(self, topic_entities: List[Entity], all_relations: List[List[Relation]]) -> List[Entity]:
-    #     """
-    #     Get connected entities for multiple topic entities in batch.
-        
-    #     Args:
-    #         topic_entities: List of topic entities.
-    #         all_relations: List of relations lists, one list per topic entity.
-            
-    #     Returns:
-    #         A list of all connected entities.
-    #     """
-    #     all_connected_entities = []
-        
-    #     for i, entity in enumerate(topic_entities):
-    #         if i < len(all_relations):
-    #             entity_relations = all_relations[i]
-    #             connected_entities = self._get_connected_entities(entity, entity_relations)
-    #             all_connected_entities.extend(connected_entities)
-        
-    #     return all_connected_entities
 
 
 if __name__ == "__main__":
@@ -358,15 +414,23 @@ if __name__ == "__main__":
     from tog.models.entity import Entity
     from tog.models.relation import Relation
     
-    # Configure logging
-    logging.basicConfig(level=logging.DEBUG)
+    # Configure improved logging
+    configure_logging()
+    
+    # Create a main logger for this script
+    main_logger = logging.getLogger("EntityExplorerDemo") 
+    main_logger.setLevel(logging.INFO)
+    
+    main_logger.info("Starting Entity Explorer Demo")
     
     # Initialize components
+    main_logger.info("Initializing LLM and Knowledge Graph")
     llm = AzureOpenAILLM(model_name="gpt-35-turbo")
     kg = Neo4jKnowledgeGraph()
 
     # Define query and prompts
     query = "What are the medical benefits of Medical Cannabis?"
+    main_logger.info(f"Query: {query}")
     
     # Entity pruning prompt - updated for clearer JSON instructions
     entity_prune_prompt = """
@@ -384,20 +448,27 @@ if __name__ == "__main__":
     prompt_params = {"entity_name": "Medical Cannabis"}
     
     # Initialize explorer
+    main_logger.info("Initializing Neo4jEntityExplorer")
     entity_explorer = Neo4jEntityExplorer(
         llm=llm,
         kg=kg,
         query=query,
         prune_prompt=entity_prune_prompt,
         prompt_params=prompt_params,
-        max_entities_per_round=3
+        max_entities_per_round=2
     )
     
     # Create example topic entity
-    topic_entity = Entity(id="192db73673d90090cf1cb7d1be13aebc", name="Chronic Pain", type="Medical Condition", 
-                    metadata={"description": "A long-lasting pain that persists beyond the usual recovery period or accompanies a chronic health condition."})
+    main_logger.info("Creating example topic entity")
+    topic_entity = Entity(
+        id="192db73673d90090cf1cb7d1be13aebc",
+        name="Chronic Pain",
+        type="Medical Condition", 
+        metadata={"description": "A long-lasting pain that persists beyond the usual recovery period or accompanies a chronic health condition."}
+    )
     
     # Create some example relations
+    main_logger.info("Creating example relations")
     selected_relations = [
         Relation(
             id="2a6ba87dd042a7b00030e8ca34808e9e",
@@ -423,11 +494,20 @@ if __name__ == "__main__":
     ]
     
     # Explore connected entities
+    main_logger.info("Starting entity exploration...")
     connected_entities = entity_explorer.explore_entities(topic_entity, selected_relations)
     
     # Print results
-    print(f"\nConnected entities for {topic_entity.name}:")
+    main_logger.info("\n=== RESULTS ===")
+    main_logger.info(f"Connected entities for {topic_entity.name}:")
+    print("8" * 20)
+    print("Connected entities for {topic_entity.name}:")
+    print("8" * 20)
+    print("Connected entities:",connected_entities)
+    print("8" * 20)
     for entity in connected_entities:
-        print(f"- {entity.name} ({entity.type}), Score: {entity.metadata.get('relevance_score', 0.0):.2f}")
-        print(f"  Relation: {entity.metadata.get('source_relation', 'Unknown')}")
-        print(f"  Direction: {entity.metadata.get('relation_direction', 'Unknown')}")
+        main_logger.info(f"- {entity.name} ({entity.type}), Score: {entity.metadata.get('relevance_score', 0.0):.2f}")
+        main_logger.info(f"  Relation: {entity.metadata.get('source_relation', 'Unknown')}")
+        main_logger.info(f"  Direction: {entity.metadata.get('relation_direction', 'Unknown')}")
+    
+    main_logger.info("Entity Explorer Demo completed successfully")
