@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 import heapq
 from typing import List
-from tog.src.models.entity import Entity
-from tog.src.models.relation import Relation
-from tog.src.models.triple import Triple
+from tog.models.entity import Entity
+from tog.models.relation import Relation
+from tog.models.triple import Triple
 
 @dataclass
 class Path:
@@ -34,18 +34,22 @@ class Path:
 @dataclass
 class TopNPaths:
     n: int
-    heap: List[Path] = None
+    heap: List = None
+    _counter: int = 0  # Add a counter to break ties
     
     def __post_init__(self):
         if self.heap is None:
             self.heap = []
     
     def add_path(self, path, confidence):
-        # Add the path with negative confidence to maintain a max-heap
-        heapq.heappush(self.heap, (-confidence, path))
+        # Use a counter to break ties when confidence values are equal
+        self._counter += 1
+        # Store as (priority, counter, path) to handle ties properly
+        heapq.heappush(self.heap, (-confidence, self._counter, path))
+        # Maintain only top n paths
         if len(self.heap) > self.n:
             heapq.heappop(self.heap)
     
     def get_paths(self):
         # Return paths sorted by confidence in descending order
-        return [path for _, path in sorted(self.heap, reverse=True)]
+        return [path for _, _, path in sorted(self.heap)]

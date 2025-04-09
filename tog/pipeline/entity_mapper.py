@@ -19,17 +19,17 @@ class EntityMapper:
         """
         Map extracted entities to knowledge graph entities using Neo4j.
         """
-        # create an empty list to store the mapped entities
         mapped_entities = []
         
         try:
             with self.kg.driver.session() as session:
                 for entity_name in extracted_entities:
-                    # write a query to get the entities with the name of the extracted entities
+                    # Updated query to include metadata
                     query = """
                     MATCH (e)
                     WHERE toLower(e.name) = toLower($entity_name)
-                    RETURN e.name as name, labels(e) as types, elementId(e) as id
+                    RETURN e.name AS name, labels(e) AS types, e.id AS id, 
+                        e.metadata AS metadata  // Ensure metadata is fetched
                     LIMIT 1
                     """
                     
@@ -37,18 +37,17 @@ class EntityMapper:
                     record = result.single()
                     
                     if record:
-                        # for each entity that is present in the knowledge graph, create an Entity Object with it and append it to the list
                         self.logger.debug(f"Entity found in KG: {record}")
                         entity = Entity(
                             id=str(record["id"]),
                             name=record["name"],
-                            type=record["types"][0] if record["types"] else None  # Use first type if available
+                            type=record["types"][0] if record["types"] else None,
+                            metadata=record.get("metadata", {})  # Ensure metadata retrieval
                         )
-                        # Add mapping type to metadata
-                        entity.metadata["mapping_type"] = "exact_match"
+                        # entity.metadata["mapping_type"] = "exact_match"
                         mapped_entities.append(entity)
+                        # mapped_entities.append(entity)
                     else:
-                        # for each entity that is not present in the knowledge graph, call self._use_mapping_handler() with the extracted_entity and KnowledgeGraph
                         self.logger.debug(f"Entity not found in KG, using mapping handler: {entity_name}")
                         mapped_entity = self._use_mapping_handler(entity_name)
                         if mapped_entity:
@@ -57,8 +56,8 @@ class EntityMapper:
         except Exception as e:
             self.logger.error(f"Error mapping entities: {str(e)}")
             
-        # return the list of mapped entities
         return mapped_entities
+
 
     def _use_mapping_handler(self, extracted_entity: str) -> Entity:
         """
@@ -87,7 +86,19 @@ if __name__ == "__main__":
     extracted_entities = ["CBD", "anxiety"]
     
     mapped_entities = entity_mapper.map_entities(extracted_entities)
+    print(mapped_entities)
+    import json
+    entities_dict = [
+        {
+            "id": entity.id,
+            "name": entity.name,
+            "type": entity.type,
+            "metadata": entity.metadata
+        }
+        for entity in mapped_entities
+    ]
     
+    print(json.dumps(entities_dict, indent=4))
     print("-" * 50)
     pprint("Mapped Entities:")
     for entity in mapped_entities:

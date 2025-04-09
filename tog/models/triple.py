@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from tog.src.models.entity import Entity
-from tog.src.models.relation import Relation
+from tog.models.entity import Entity
+from tog.models.relation import Relation
 
 @dataclass
 class Triple:

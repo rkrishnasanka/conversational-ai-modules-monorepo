@@ -1,383 +1,368 @@
-from abc import ABC, abstractmethod
-from typing import Dict, List
 import logging
 import json
 import re
+from typing import Dict, List, Any, Optional
+from abc import ABC, abstractmethod
 
 from tog.llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.relation import Relation
 
-class Explorer:
-    """Abstract base class for exploring entities and relations in a knowledge graph."""
-    def __init__(self, llm: BaseLLM, kg: KnowledgeGraph, query: str, prune_prompt: str, 
-                 prompt_params: Dict[str, str] = None, system_prompt: str = None):
+class RelationExplorer(ABC):
+    """
+    Abstract base class for relation explorers.
+    This class defines the interface for exploring relations in a knowledge graph.
+    """
+
+    def __init__(self, 
+                 llm: BaseLLM, 
+                 kg: KnowledgeGraph, 
+                 query: str,
+                 max_relations: int = 3,
+                 system_prompt: str = None):
+        """
+        Initialize the RelationExplorer with a language model, knowledge graph, and query.
+
+        Args:
+            llm: The language model to use for exploration.
+            kg: The knowledge graph to explore.
+            query: Query string for exploration guidance.
+            max_relations: Maximum number of relations to return.
+            system_prompt: System prompt for the LLM.
+        """
         self.llm = llm
         self.kg = kg
         self.query = query
-        self.prune_prompt = prune_prompt
-        self.prompt_params = prompt_params or {}
-        self.system_prompt = system_prompt or "You are a helpful assistant."
+        self.max_relations = max_relations
+        self.system_prompt = system_prompt or "You are an AI assistant specialized in analyzing semantic relations."
         self.logger = logging.getLogger(self.__class__.__name__)
 
-
-class RelationExplorer(Explorer, ABC):
-    """Abstract base class for relation explorers."""
-
     def explore_relations(self, entity: Entity) -> List[Relation]:
-        """Explore relations associated with the given entity."""
-        candidate_relations = self.get_candidates(entity)
-        return self.prune_candidates(candidate_relations)
+        """
+        Explore relations associated with the given entity.
+
+        Args:
+            entity: The entity to explore relations for.
+
+        Returns:
+            A list of relations associated with the entity.
+        """
+        self.logger.info(f"Exploring relations for entity: {entity.name}")
+        
+        # Get all candidate relations for the entity
+        candidate_relations = self._get_candidates(entity)
+        self.logger.info(f"Found {len(candidate_relations)} candidate relations")
+        
+        # Prune based on relevance to query
+        pruned_relations = self._prune_candidates(entity, candidate_relations)
+        self.logger.info(f"Pruned to {len(pruned_relations)} relations")
+        
+        return pruned_relations
     
     @abstractmethod
-    def get_candidates(self, entity: Entity) -> List[Relation]:
-        """Get candidate relations for the given entity."""
+    def _get_candidates(self, entity: Entity) -> List[Relation]:
+        """
+        Get candidate relations for the given entity.
+
+        Args:
+            entity: The entity to get candidates for.
+
+        Returns:
+            A list of candidate relations.
+        """
         pass
 
-    def prune_candidates(self, relations: List[Relation]) -> List[Relation]:
-        """Prune candidate relations using LLM to score their relevance."""
+    def _prune_candidates(self, entity: Entity, relations: List[Relation]) -> List[Relation]:
+        """
+        Prune the candidate relations using LLM to score their relevance to the query.
+
+        Args:
+            entity: The entity associated with the relations
+            relations: The list of candidate relations to prune.
+
+        Returns:
+            A list of pruned relations ordered by relevance score.
+        """
         if not relations:
             self.logger.debug("No relations to prune")
             return []
         
         try:
             # Format relations for the prompt
-            relations_text = self._format_relations_text(relations)
-            n = min(3, len(relations))
+            relations_text = ""
             
-            # Get LLM response
-            prompt = self._create_relations_prompt(relations_text, n)
-            scores_dict = self._get_llm_scores(prompt)
+            for i, relation in enumerate(relations, 1):
+                # Format direction information
+                if relation.metadata.get("is_incoming", False):
+                    direction = f"{relation.metadata.get('source_name', 'Unknown')} → {relation.metadata.get('target_name', 'Unknown')}"
+                else:
+                    direction = f"{relation.metadata.get('source_name', 'Unknown')} → {relation.metadata.get('target_name', 'Unknown')}"
+                
+                # Add description if available
+                description = ""
+                if relation.metadata.get("description"):
+                    description = f": {relation.metadata['description']}"
+                
+                relations_text += f"{i}. Type: {relation.type}{description}, Direction: {direction}\n"
             
-            # Score and sort relations
-            scored_relations = self._score_relations(relations, scores_dict)
-            return scored_relations[:n]
+            # Prepare prompt for ranking
+            prompt = f"""
+            Please analyze the following relations and rank them based on their relevance to the query.
+            
+            QUERY: {self.query}
+            TOPIC ENTITY: {entity.name} ({entity.type})
+            
+            RELATIONS:
+            {relations_text}
+            
+            For each relation, assign a relevance score between 0.0 and 1.0, where 1.0 is highly relevant and 0.0 is not relevant at all.
+            Consider how useful each relation would be in answering the query.
+            
+            Return your response as a JSON object where the keys are the indexes of the relations and the values are their relevance scores.
+            Example format:
+            {{
+                "1": 0.9,
+                "2": 0.7,
+                "3": 0.3
+            }}
+            
+            Return only the JSON object, no additional explanations.
+            """
+            
+            # Call LLM for scoring
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+            
+            response = self.llm.generate(messages, temperature=0.2)
+            
+            # Parse LLM response to extract JSON
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                try:
+                    scores_dict = json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    self.logger.error(f"Failed to parse LLM response as JSON: {response}")
+                    return relations[:self.max_relations]
+            else:
+                self.logger.error(f"No JSON found in LLM response: {response}")
+                return relations[:self.max_relations]
+            
+            # Assign scores to relations
+            for idx_str, score in scores_dict.items():
+                try:
+                    idx = int(idx_str) - 1  # Convert to 0-based index
+                    if 0 <= idx < len(relations):
+                        relations[idx].metadata["relevance_score"] = float(score)
+                except (ValueError, IndexError) as e:
+                    self.logger.warning(f"Error processing score for index {idx_str}: {e}")
+            
+            # Sort by score in descending order
+            scored_relations = sorted(
+                relations,
+                key=lambda r: r.metadata.get("relevance_score", 0.0),
+                reverse=True
+            )
+            
+            # Return top N relations
+            return scored_relations[:self.max_relations]
             
         except Exception as e:
             self.logger.error(f"Error pruning relations: {e}")
-            return relations[:min(3, len(relations))]
-    
-    def _format_relations_text(self, relations: List[Relation]) -> str:
-        """Format relations for the prompt."""
-        relations_text = ""
-        for i, relation in enumerate(relations, 1):
-            is_incoming = relation.metadata.get("is_incoming", False)
-            source = relation.metadata.get('source_name', 'Unknown')
-            target = relation.metadata.get('target_name', 'Unknown')
-            direction = f"{source} → {target}"
-            relations_text += f"{i}. Relation: {relation.type}, Direction: {direction}\n"
-        return relations_text
-    
-    def _create_relations_prompt(self, relations_text: str, n: int) -> str:
-        """Create prompt for relation scoring."""
-        return f"""
-        Please retrieve {n} relations that contribute to the question and rate their contribution on a scale from 0 to 1 (the sum of the scores of {n} relations is 1). Return the result in valid JSON format.
-        
-        Q: {self.query}
-        Topic Entity: {self.prompt_params.get('entity_name', 'Unknown Entity')}
-        Relations: 
-        {relations_text}
-        """
-    
-    def _get_llm_scores(self, prompt: str) -> Dict:
-        """Get scores from LLM."""
-        messages = [
-            {"role": "system", "content": "You are an AI assistant specialized in analyzing semantic relations between entities and questions."},
-            {"role": "user", "content": prompt}
-        ]
-        
-        response = self.llm.generate(messages, temperature=0.3)
-        
-        # Extract JSON from response
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                self.logger.error(f"Failed to parse LLM response as JSON")
-                return {}
-        else:
-            self.logger.error(f"No JSON found in LLM response")
-            return {}
-    
-    def _score_relations(self, relations: List[Relation], scores_dict: Dict) -> List[Relation]:
-        """Score relations based on LLM response."""
-        scored_relations = []
-        for relation in relations:
-            score = 0.0
-            for rel_type, rel_score in scores_dict.items():
-                if relation.type.lower() in rel_type.lower():
-                    score = float(rel_score)
-                    break
-            
-            relation.metadata["relevance_score"] = score
-            scored_relations.append(relation)
-        
-        scored_relations.sort(key=lambda r: r.metadata.get("relevance_score", 0.0), reverse=True)
-        return scored_relations
-        
+            return relations[:self.max_relations]
+
 
 class Neo4jRelationExplorer(RelationExplorer):
-    """A concrete implementation of RelationExplorer for Neo4j knowledge graph."""
+    """
+    A concrete implementation of RelationExplorer for Neo4j knowledge graph.
+    """
     
-    def get_candidates(self, entity: Entity) -> List[Relation]:
-        """Get candidate relations for the given entity using Neo4j knowledge graph."""
+    def _get_candidates(self, entity: Entity) -> List[Relation]:
+        """
+        Get candidate relations for the given entity using Neo4j knowledge graph.
+        Retrieves both incoming and outgoing relations.
+
+        Args:
+            entity: The entity to get candidates for.
+
+        Returns:
+            A list of candidate relations.
+        """
         try:
             self.logger.debug(f"Getting candidate relations for entity: {entity.name} (ID: {entity.id})")
             
-            outgoing_results = self._query_outgoing_relations(entity.id)
-            incoming_results = self._query_incoming_relations(entity.id)
+            # Query to find all relationships where the given entity is either the source (outgoing)
+            query_outgoing = """
+            MATCH (source)-[r]->(target)
+            WHERE source.id = $entity_id
+            RETURN 
+                source.id as source_id,
+                source.name as source_name, 
+                target.id as target_id,
+                target.name as target_name,
+                type(r) as relation_type,
+                r.id as relation_id,
+                properties(r) as metadata,
+                false as is_incoming
+            """
+            
+            # Query to find all relationships where the given entity is the target (incoming)
+            query_incoming = """
+            MATCH (source)-[r]->(target)
+            WHERE target.id = $entity_id
+            RETURN 
+                source.id as source_id,
+                source.name as source_name,
+                target.id as target_id,
+                target.name as target_name,
+                type(r) as relation_type,
+                r.id as relation_id,
+                properties(r) as metadata,
+                true as is_incoming
+            """
+            
+            # Execute both queries
+            outgoing_results = self.kg.query(query_outgoing, entity_id=entity.id)
+            incoming_results = self.kg.query(query_incoming, entity_id=entity.id)
+            
+            # Combine results
             all_results = outgoing_results + incoming_results
+            self.logger.debug(f"Found {len(all_results)} total relations ({len(outgoing_results)} outgoing, {len(incoming_results)} incoming)")
             
-            relations = self._convert_results_to_relations(all_results)
+            # Convert results to Relation objects
+            relations = []
             
-            self.logger.debug(f"Found {len(relations)} candidate relations for entity: {entity.name}")
+            for result in all_results:
+                # Extract metadata and ensure it's a dictionary
+                metadata = result.get("metadata", {})
+                if metadata is None:
+                    metadata = {}
+                
+                # Add source and target names to metadata for better context
+                metadata["source_name"] = result["source_name"]
+                metadata["target_name"] = result["target_name"]
+                metadata["is_incoming"] = result["is_incoming"]
+                
+                # Create the relation object
+                relation = Relation(
+                    id=result["relation_id"],
+                    source_id=result["source_id"],
+                    target_id=result["target_id"],
+                    type=result["relation_type"],
+                    metadata=metadata
+                )
+                
+                relations.append(relation)
+            
             return relations
             
         except Exception as e:
-            self.logger.error(f"Error getting candidate relations for entity {entity.name}: {e}")
+            self.logger.error(f"Error getting candidate relations: {e}")
             return []
-    
-    def _query_outgoing_relations(self, entity_id: str):
-        """Query outgoing relations."""
-        query = """
-        MATCH (source)-[r]->(target)
-        WHERE source.id = $entity_id
-        RETURN 
-            source.id as source_id,
-            source.name as source_name, 
-            target.id as target_id,
-            target.name as target_name,
-            type(r) as relation_type,
-            r.id as relation_id,
-            properties(r) as metadata,
-            false as is_incoming
-        """
-        return self.kg.query(query, entity_id=entity_id)
-    
-    def _query_incoming_relations(self, entity_id: str):
-        """Query incoming relations."""
-        query = """
-        MATCH (source)-[r]->(target)
-        WHERE target.id = $entity_id
-        RETURN 
-            source.id as source_id,
-            source.name as source_name,
-            target.id as target_id,
-            target.name as target_name,
-            type(r) as relation_type,
-            r.id as relation_id,
-            properties(r) as metadata,
-            true as is_incoming
-        """
-        return self.kg.query(query, entity_id=entity_id)
-    
-    def _convert_results_to_relations(self, results):
-        """Convert query results to Relation objects."""
-        relations = []
-        for result in results:
-            relation_id = str(result.get("relation_id", ""))
-            
-            # Generate ID if not found
-            if not relation_id:
-                relation_id = f"rel_{result['source_id']}_{result['relation_type']}_{result['target_id']}"
-            
-            metadata = result.get("metadata", {})
-            metadata.update({
-                "source_name": result.get("source_name", ""),
-                "target_name": result.get("target_name", ""),
-                "is_incoming": result.get("is_incoming", False)
-            })
-            
-            relation = Relation(
-                id=relation_id,
-                source_id=result["source_id"],
-                target_id=result["target_id"],
-                type=result["relation_type"],
-                metadata=metadata
-            )
-            relations.append(relation)
-        
-        return relations
 
 
-class EntityExplorer(Explorer):
-    """Abstract base class for entity exploration in a knowledge graph."""
-    
-    def explore_entities(self, entity: Entity) -> List[Entity]:
-        """Get entities related to the given entity in the knowledge graph."""
-        candidate_entities = self._get_related_entities(entity)
-        self.logger.debug(f"Candidate entities for {entity.name}: {candidate_entities}")
-        
-        pruned_entities = self._prune_entities(candidate_entities)
-        self.logger.debug(f"Pruned entities for {entity.name}: {pruned_entities}")
-        
-        return pruned_entities
-    
-    @abstractmethod
-    def _get_related_entities(self, entity: Entity) -> List[Entity]:
-        """Get related entities for the given entity from the knowledge graph."""
-        pass
-
-    def _prune_entities(self, entities: List[Entity]) -> List[Entity]:
-        """Prune the list of entities based on certain criteria."""
-        if not entities:
-            self.logger.debug("No entities to prune")
-            return []
-        
-        try:
-            entities_text = self._format_entities_text(entities)
-            n = min(3, len(entities))
-            
-            # Get LLM response
-            formatted_prompt = self._create_entities_prompt(entities_text, n)
-            scores_dict = self._get_llm_scores(formatted_prompt)
-            
-            # Score and sort entities
-            scored_entities = self._score_entities(entities, scores_dict)
-            return scored_entities[:n]
-            
-        except Exception as e:
-            self.logger.error(f"Error pruning entities: {e}")
-            return entities[:min(3, len(entities))]
-    
-    def _format_entities_text(self, entities: List[Entity]) -> str:
-        """Format entities for the prompt."""
-        entities_text = ""
-        for i, entity in enumerate(entities, 1):
-            entity_desc = f"{entity.name} ({entity.type})"
-            if entity.metadata and "description" in entity.metadata:
-                entity_desc += f": {entity.metadata['description']}"
-            entities_text += f"{i}. {entity_desc}\n"
-        return entities_text
-    
-    def _create_entities_prompt(self, entities_text: str, n: int) -> str:
-        """Create prompt for entity scoring."""
-        return self.prune_prompt.format(
-            query=self.query,
-            n=n,
-            entities=entities_text,
-            **self.prompt_params
-        )
-    
-    def _get_llm_scores(self, prompt: str) -> Dict:
-        """Get scores from LLM."""
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": prompt}
-        ]
-        
-        response = self.llm.generate(messages, temperature=0.3)
-        
-        # Extract JSON from response
-        json_match = re.search(r'\{.*\}', response, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                self.logger.error("Failed to parse LLM response as JSON")
-                return {}
-        else:
-            self.logger.error("No JSON found in LLM response")
-            return {}
-    
-    def _score_entities(self, entities: List[Entity], scores_dict: Dict) -> List[Entity]:
-        """Score entities based on LLM response."""
-        scored_entities = []
-        for entity in entities:
-            score = 0.0
-            for entity_name, entity_score in scores_dict.items():
-                if entity.name.lower() in entity_name.lower():
-                    score = float(entity_score)
-                    break
-            
-            entity.metadata["relevance_score"] = score
-            scored_entities.append(entity)
-        
-        scored_entities.sort(key=lambda e: e.metadata.get("relevance_score", 0.0), reverse=True)
-        return scored_entities
-
-
-class Neo4jEntityExplorer(EntityExplorer):
-    """Entity explorer for Neo4j knowledge graph."""
-    
-    def _get_related_entities(self, entity: Entity) -> List[Entity]:
-        """Get related entities for the given entity from the Neo4j knowledge graph."""
-        try:
-            self.logger.debug(f"Getting related entities for entity: {entity.name} (ID: {entity.id})")
-            
-            results = self._query_related_entities(entity.id)
-            entities = self._convert_results_to_entities(results)
-            
-            self.logger.debug(f"Found {len(entities)} related entities for entity: {entity.name}")
-            return entities
-            
-        except Exception as e:
-            self.logger.error(f"Error getting related entities for entity {entity.name}: {e}")
-            return []
-    
-    def _query_related_entities(self, entity_id: str):
-        """Query related entities."""
-        query = """
-        MATCH (source)-[r]-(target)
-        WHERE source.id = $entity_id AND target.id <> $entity_id
-        RETURN DISTINCT
-            target.id as id,
-            target.name as name,
-            labels(target)[0] as type,
-            properties(target) as properties
-        """
-        return self.kg.query(query, entity_id=entity_id)
-    
-    def _convert_results_to_entities(self, results):
-        """Convert query results to Entity objects."""
-        entities = []
-        for result in results:
-            metadata = {k: v for k, v in result.get("properties", {}).items() 
-                      if k not in ["id", "name"]}
-            
-            entity = Entity(
-                id=result["id"],
-                name=result["name"],
-                type=result["type"],
-                metadata=metadata
-            )
-            entities.append(entity)
-        
-        return entities
-
-
-if __name__ == "__main__":
-    # Example usage
-    import logging
-    from tog.llms import AzureOpenAILLM
-    from tog.kgs import Neo4jKnowledgeGraph
-    
-    # Configure logging
-    logging.basicConfig(level=logging.DEBUG)
-    
-    llm = AzureOpenAILLM(model_name="gpt-35-turbo")
-    kg = Neo4jKnowledgeGraph()
-
-    query = "What are the medical benefits of Medical Cannabis?"
-    prune_prompt = """
-    Please retrieve {n} entities that contribute to answering the question and rate their contribution on a scale from 0 to 1 (the sum of the scores of {n} entities is 1). Return the result in valid JSON format.
-    
-    Q: {query}
-    Topic Entity: {entity_name}
-    Entities: 
-    {entities}
+class RelationalPathFinder(RelationExplorer):
     """
-    prompt_params = {"entity_name": "Chronic Pain"}
+    Extended relation explorer that finds not just immediate relations,
+    but also multi-hop paths between entities.
+    """
     
-    # Example of relation exploration
-    relation_explorer = Neo4jRelationExplorer(llm, kg, query, prune_prompt, prompt_params)
-    entity = Entity(id="192db73673d90090cf1cb7d1be13aebc", name="Chronic Pain", type="Medical Condition", 
-                    metadata={"description": "A long-lasting pain that persists beyond the usual recovery period or accompanies a chronic health condition."})
-    relations = relation_explorer.explore_relations(entity)
+    def __init__(self, 
+                llm: BaseLLM, 
+                kg: KnowledgeGraph, 
+                query: str,
+                max_relations: int = 3,
+                max_path_length: int = 2,
+                system_prompt: str = None):
+        """
+        Initialize the RelationalPathFinder.
+        
+        Args:
+            llm: The language model to use for exploration.
+            kg: The knowledge graph to explore.
+            query: Query string for exploration guidance.
+            max_relations: Maximum number of relations to return.
+            max_path_length: Maximum length of paths to consider (number of hops).
+            system_prompt: System prompt for the LLM.
+        """
+        super().__init__(llm, kg, query, max_relations, system_prompt)
+        self.max_path_length = max_path_length
     
-    print(f"Relations for {entity.name}:")
-    print("length:", len(relations))
-    for relation in relations:
-        print(f"- {relation.type} (ID: {relation.id})")
+    def _get_candidates(self, entity: Entity) -> List[Relation]:
+        """
+        Get candidate relations for the given entity, considering multi-hop paths.
+        
+        Args:
+            entity: The entity to get candidates for.
+            
+        Returns:
+            A list of candidate relations.
+        """
+        try:
+            self.logger.debug(f"Getting multi-hop relations for entity: {entity.name} (ID: {entity.id})")
+            
+            # Query to find paths up to max_path_length hops from the entity
+            # This uses the Neo4j variable length path syntax
+            query = f"""
+            MATCH path = (source)-[r1:*1..{self.max_path_length}]->(target)
+            WHERE source.id = $entity_id
+            WITH source, target, relationships(path) AS rels
+            LIMIT 100  // Limit to prevent excessive results
+            RETURN 
+                source.id as source_id,
+                source.name as source_name,
+                target.id as target_id,
+                target.name as target_name,
+                [rel IN rels | type(rel)] AS relation_types,
+                [rel IN rels | rel.id] AS relation_ids,
+                length(rels) as path_length
+            """
+            
+            # Execute the query
+            results = self.kg.query(query, entity_id=entity.id)
+            
+            self.logger.debug(f"Found {len(results)} multi-hop relation paths")
+            
+            # Convert results to Relation objects
+            # For multi-hop paths, we'll create a composite relation
+            relations = []
+            
+            for result in results:
+                # Skip if no relations in path
+                if not result.get("relation_ids") or len(result["relation_ids"]) == 0:
+                    continue
+                
+                # Create a composite relation ID
+                composite_id = "_".join(result["relation_ids"])
+                
+                # Create a composite relation type
+                composite_type = " -> ".join(result["relation_types"])
+                
+                # Create metadata
+                metadata = {
+                    "source_name": result["source_name"],
+                    "target_name": result["target_name"],
+                    "path_length": result["path_length"],
+                    "relation_ids": result["relation_ids"],
+                    "relation_types": result["relation_types"],
+                    "is_composite": True
+                }
+                
+                # Create the relation object
+                relation = Relation(
+                    id=composite_id,
+                    source_id=result["source_id"],
+                    target_id=result["target_id"],
+                    type=composite_type,
+                    metadata=metadata
+                )
+                
+                relations.append(relation)
+            
+            return relations
+            
+        except Exception as e:
+            self.logger.error(f"Error getting multi-hop relations: {e}")
+            return []
