@@ -31,7 +31,7 @@ class LLMExtractor(EntityExtractor):
     def initialize_llm(self) -> BaseLLM:
         pass
 
-    def extract_entities(self, text: str) -> List[Entity]:
+    def extract_entities(self, text: str) -> List[str]:
         logger.debug(f"Extracting entities from text: {text[:50]}...")
         
         # Get the extraction prompt

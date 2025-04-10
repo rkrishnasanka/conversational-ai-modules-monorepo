@@ -74,7 +74,7 @@ class EntityMapper:
         except Exception as e:
             self.logger.error(f"Error using mapping handler for entity '{extracted_entity}': {str(e)}")
             return None
-        
+          
 if __name__ == "__main__":
     # Example usage
     kg = Neo4jKnowledgeGraph()
