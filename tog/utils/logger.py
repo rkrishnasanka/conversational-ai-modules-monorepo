@@ -56,3 +56,10 @@ def setup_logger(
     logger.addHandler(file_handler)
 
     return logger
+
+def setup_default_logging():
+    """Configure default logging for the package."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )

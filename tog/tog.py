@@ -11,12 +11,16 @@ from tog.pipeline.exploration_loop import ExplorationLoop
 from tog.pipeline.entity_extractor import LLMExtractor, GroqEntityExtractor, AzureOpenAIEntityExtractor
 from tog.pipeline.entity_mapper import EntityMapper
 from tog.pipeline.mapping_handler import Neo4jMappingHandler
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+from tog.utils.logger import setup_default_logging
+from tog.config import (
+    DEFAULT_MODEL,
+    DEFAULT_MAX_ITERATIONS,
+    DEFAULT_MAX_PATHS,
+    DEFAULT_MAX_ENTITIES_PER_ROUND,
+    DEFAULT_MAX_RELATIONS
 )
+
+setup_default_logging()
 
 class ToG:
     """
@@ -63,7 +67,7 @@ class ToG:
         
         # Default to using the same LLM type with a basic wrapper
         self.logger.warning("Using default entity extractor configuration")
-        return AzureOpenAIEntityExtractor(model_name="gpt-4o")
+        return AzureOpenAIEntityExtractor(model_name=DEFAULT_MODEL)
     
     def _create_default_entity_mapper(self) -> EntityMapper:
         """
@@ -75,8 +79,8 @@ class ToG:
     def explore_and_answer(self, 
                           query: str, 
                           initial_entities: Optional[List[Entity]] = None,
-                          max_iterations: int = 3,
-                          max_paths: int = 5) -> dict:
+                          max_iterations: int = DEFAULT_MAX_ITERATIONS,
+                          max_paths: int = DEFAULT_MAX_PATHS) -> dict:
         """
         Explore the knowledge graph and generate an answer for the query.
         
@@ -124,14 +128,14 @@ class ToG:
             llm=self.llm,
             kg=self.kg,
             query=query,
-            max_entities_per_round=3
+            max_entities_per_round=DEFAULT_MAX_ENTITIES_PER_ROUND
         )
         
         relation_explorer = Neo4jRelationExplorer(
             llm=self.llm,
             kg=self.kg,
             query=query,
-            max_relations=3
+            max_relations=DEFAULT_MAX_RELATIONS
         )
         
         # Step 3: Initialize exploration loop
