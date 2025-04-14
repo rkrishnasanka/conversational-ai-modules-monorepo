@@ -10,6 +10,7 @@ from tog.models.entity import Entity
 from tog.models.relation import Relation
 from tog.models.triple import Triple
 from tog.utils.logger import console_logger as logger
+from tog.utils import prompt_utils
 
 class EntityExplorer(ABC):
     """
@@ -92,45 +93,11 @@ class EntityExplorer(ABC):
             return []
         
         try:
-            # Format tuples for LLM
-            tuples_text = ""
-            for i, (source, relation, target) in enumerate(entity_relation_tuples, 1):
-                source_desc = f"{source.name} ({source.type})"
-                relation_desc = relation.type
-                target_desc = f"{target.name} ({target.type})"
-                
-                # Add descriptions if available
-                if source.metadata and "description" in source.metadata:
-                    source_desc += f": {source.metadata['description']}"
-                if relation.metadata and "description" in relation.metadata:
-                    relation_desc += f": {relation.metadata['description']}"
-                if target.metadata and "description" in target.metadata:
-                    target_desc += f": {target.metadata['description']}"
-                
-                tuples_text += f"{i}. {source_desc} -[{relation_desc}]-> {target_desc}\n"
+            # Format tuples for LLM using utility function
+            tuples_text = prompt_utils.format_entity_relation_tuples(entity_relation_tuples)
             
-            # Prepare prompt for ranking
-            prompt = f"""
-            Please analyze the following knowledge graph triples and rank them based on their relevance to the query.
-            
-            QUERY: {self.query}
-            
-            KNOWLEDGE GRAPH TRIPLES:
-            {tuples_text}
-            
-            For each triple, assign a relevance score between 0.0 and 1.0, where 1.0 is highly relevant and 0.0 is not relevant at all.
-            Consider how useful each triple would be in answering the query.
-            
-            Return your response as a JSON object where the keys are the indexes of the triples and the values are their relevance scores.
-            Example format:
-            {{
-                "1": 0.9,
-                "2": 0.7,
-                "3": 0.3
-            }}
-            
-            Return only the JSON object, no additional explanations.
-            """
+            # Create prompt using utility function
+            prompt = prompt_utils.create_entity_ranking_prompt(self.query, tuples_text)
             
             # Call LLM for scoring
             messages = [
@@ -140,17 +107,8 @@ class EntityExplorer(ABC):
             
             response = self.llm.generate(messages, temperature=0.2)
             
-            # Parse LLM response to extract JSON
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                try:
-                    scores_dict = json.loads(json_match.group(0))
-                except json.JSONDecodeError:
-                    self.logger.error(f"Failed to parse LLM response as JSON: {response}")
-                    return entity_relation_tuples[:self.max_entities_per_round]
-            else:
-                self.logger.error(f"No JSON found in LLM response: {response}")
-                return entity_relation_tuples[:self.max_entities_per_round]
+            # Parse scores using utility function
+            scores_dict = prompt_utils.parse_llm_scores(response)
             
             # Assign scores to entities
             for idx_str, score in scores_dict.items():

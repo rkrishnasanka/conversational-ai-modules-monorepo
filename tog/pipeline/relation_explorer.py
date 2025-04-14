@@ -8,6 +8,7 @@ from tog.llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.relation import Relation
+from tog.utils import prompt_utils
 
 class RelationExplorer(ABC):
     """
@@ -90,65 +91,13 @@ class RelationExplorer(ABC):
         
         try:
             # Format relations for the prompt
-            relations_text = ""
-            
-            for i, relation in enumerate(relations, 1):
-                # Format direction information
-                if relation.metadata.get("is_incoming", False):
-                    direction = f"{relation.metadata.get('source_name', 'Unknown')} → {relation.metadata.get('target_name', 'Unknown')}"
-                else:
-                    direction = f"{relation.metadata.get('source_name', 'Unknown')} → {relation.metadata.get('target_name', 'Unknown')}"
-                
-                # Add description if available
-                description = ""
-                if relation.metadata.get("description"):
-                    description = f": {relation.metadata['description']}"
-                
-                relations_text += f"{i}. Type: {relation.type}{description}, Direction: {direction}\n"
+            relations_text = self._format_relations_text(relations)
             
             # Prepare prompt for ranking
-            prompt = f"""
-            Please analyze the following relations and rank them based on their relevance to the query.
-            
-            QUERY: {self.query}
-            TOPIC ENTITY: {entity.name} ({entity.type})
-            
-            RELATIONS:
-            {relations_text}
-            
-            For each relation, assign a relevance score between 0.0 and 1.0, where 1.0 is highly relevant and 0.0 is not relevant at all.
-            Consider how useful each relation would be in answering the query.
-            
-            Return your response as a JSON object where the keys are the indexes of the relations and the values are their relevance scores.
-            Example format:
-            {{
-                "1": 0.9,
-                "2": 0.7,
-                "3": 0.3
-            }}
-            
-            Return only the JSON object, no additional explanations.
-            """
+            prompt = self._create_relations_prompt(relations_text, len(relations))
             
             # Call LLM for scoring
-            messages = [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": prompt}
-            ]
-            
-            response = self.llm.generate(messages, temperature=0.2)
-            
-            # Parse LLM response to extract JSON
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                try:
-                    scores_dict = json.loads(json_match.group(0))
-                except json.JSONDecodeError:
-                    self.logger.error(f"Failed to parse LLM response as JSON: {response}")
-                    return relations[:self.max_relations]
-            else:
-                self.logger.error(f"No JSON found in LLM response: {response}")
-                return relations[:self.max_relations]
+            scores_dict = self._get_llm_scores(prompt)
             
             # Assign scores to relations
             for idx_str, score in scores_dict.items():
@@ -172,6 +121,29 @@ class RelationExplorer(ABC):
         except Exception as e:
             self.logger.error(f"Error pruning relations: {e}")
             return relations[:self.max_relations]
+
+    def _format_relations_text(self, relations: List[Relation]) -> str:
+        """Format relations for the prompt."""
+        return prompt_utils.format_relations_for_prompt(relations)
+    
+    def _create_relations_prompt(self, relations_text: str, n: int) -> str:
+        """Create prompt for relation scoring."""
+        return prompt_utils.create_relations_prompt(
+            self.query,
+            relations_text,
+            n,
+            self.prompt_params.get('entity_name', 'Unknown Entity')
+        )
+    
+    def _get_llm_scores(self, prompt: str) -> Dict:
+        """Get scores from LLM."""
+        messages = [
+            {"role": "system", "content": "You are an AI assistant specialized in analyzing semantic relations between entities and questions."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = self.llm.generate(messages, temperature=0.3)
+        return prompt_utils.parse_llm_scores(response)
 
 
 class Neo4jRelationExplorer(RelationExplorer):
