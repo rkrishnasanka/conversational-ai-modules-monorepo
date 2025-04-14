@@ -1,14 +1,10 @@
-import logging
-import json
-import re
-from typing import Dict, List, Tuple, Optional, Any
+from typing import List, Tuple
 from abc import ABC, abstractmethod
 
 from tog.llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.relation import Relation
-from tog.models.triple import Triple
 from tog.utils.logger import console_logger as logger
 from tog.utils import prompt_utils
 

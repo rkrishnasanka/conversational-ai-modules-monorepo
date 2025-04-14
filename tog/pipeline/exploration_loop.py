@@ -1,12 +1,9 @@
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List
 import logging
-from dataclasses import dataclass, field
-import heapq
 
 from tog.llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
-from tog.models.relation import Relation
 from tog.models.triple import Triple
 from tog.models.path import Path, TopNPaths
 
