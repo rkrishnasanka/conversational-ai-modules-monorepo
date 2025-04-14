@@ -5,7 +5,6 @@ from tog.llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.path import Path
-
 from tog.pipeline.entity_explorer import Neo4jEntityExplorer
 from tog.pipeline.relation_explorer import Neo4jRelationExplorer
 from tog.pipeline.exploration_loop import ExplorationLoop
@@ -19,7 +18,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-class KnowledgeGraphExplorer:
+class ToG:
     """
     Main class for integrating and using the knowledge graph exploration components.
     """
@@ -257,7 +256,7 @@ def main():
     entity_mapper = EntityMapper(kg=kg, mapping_handler=mapping_handler)
     
     # Create explorer with the components
-    explorer = KnowledgeGraphExplorer(
+    explorer = ToG(
         llm=llm, 
         kg=kg,
         entity_extractor=entity_extractor,
