@@ -2,64 +2,62 @@ import logging
 from pathlib import Path
 from logging.handlers import TimedRotatingFileHandler
 
-# Define a function to set up logging
-def setup_logger(
-    name="app_logger",
+# Create package-level loggers
+console_logger = logging.getLogger('tog')
+file_logger = logging.getLogger('tog.file')
+
+def initialize_loggers(
     log_dir="logs",
-    log_filename="app.log",
-    log_level=logging.DEBUG,
+    log_filename="tog.log",
+    console_level=logging.ERROR,  # Changed default to ERROR
+    file_level=logging.ERROR,    # Changed default to ERROR
     when="midnight",
     backup_count=7,
-    fmt="%(asctime)s - %(message)s"
+    fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 ):
-    """
-    Sets up a logger with both console and TimedRotatingFileHandler.
-    
-    - `log_dir`: Directory to store logs.
-    - `log_filename`: Log file name.
-    - `log_level`: Logging level (DEBUG, INFO, etc.).
-    - `when`: Rotation time (`midnight`, `H` for hourly, etc.).
-    - `backup_count`: Number of rotated logs to keep.
-    - `fmt`: Log message format.
-    """
-
+    """Initialize both console and file loggers for the tog package."""
     # Ensure log directory exists
     log_path = Path(log_dir)
     log_path.mkdir(exist_ok=True)
     
-    # Full log file path
-    log_file_path = log_path / log_filename
-
-    # Create logger
-    logger = logging.getLogger(name)
-    logger.setLevel(log_level)
-
-    # Prevent duplicate handlers if called multiple times
-    if logger.hasHandlers():
-        return logger
-
-    # Define log format
     formatter = logging.Formatter(fmt)
 
-    # Console Handler (for real-time visibility)
+    # Console Handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
-    console_handler.setLevel(log_level)
-    logger.addHandler(console_handler)
+    console_handler.setLevel(console_level)
+    console_logger.addHandler(console_handler)
+    console_logger.setLevel(console_level)
 
-    # File Handler (TimedRotatingFileHandler for automatic log rotation)
+    # File Handler with rotation
     file_handler = TimedRotatingFileHandler(
-        log_file_path, when=when, backupCount=backup_count, encoding="utf-8"
+        log_path / log_filename,
+        when=when,
+        backupCount=backup_count,
+        encoding="utf-8"
     )
     file_handler.setFormatter(formatter)
-    file_handler.setLevel(log_level)
-    logger.addHandler(file_handler)
+    file_handler.setLevel(file_level)
+    file_logger.addHandler(file_handler)
+    file_logger.setLevel(file_level)
 
-    return logger
+def set_log_level(level):
+    """Set log level for all tog loggers."""
+    console_logger.setLevel(level)
+    file_logger.setLevel(level)
+
+# Initialize loggers with ERROR level
+initialize_loggers()
+
+# Keep these for backward compatibility
+def setup_logger(*args, **kwargs):
+    """Deprecated: Use console_logger or file_logger instead."""
+    import warnings
+    warnings.warn("setup_logger is deprecated. Use tog.utils.logger.console_logger instead", DeprecationWarning)
+    return console_logger
 
 def setup_default_logging():
-    """Configure default logging for the package."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    """Deprecated: Use initialize_loggers instead."""
+    import warnings
+    warnings.warn("setup_default_logging is deprecated. Use tog.utils.logger.initialize_loggers instead", DeprecationWarning)
+    initialize_loggers()

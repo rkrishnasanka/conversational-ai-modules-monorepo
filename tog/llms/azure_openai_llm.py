@@ -4,6 +4,7 @@ from tog.llms.base_llm import BaseLLM
 from dotenv import load_dotenv
 from openai import AsyncAzureOpenAI, AzureOpenAI
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+from tog.utils.logger import console_logger as logger
 
 
 class AzureOpenAILLM(BaseLLM):
@@ -32,6 +33,7 @@ class AzureOpenAILLM(BaseLLM):
             api_version=api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2023-05-15")
         )
         self.model_name = model_name
+        logger.info(f"Initializing AzureOpenAILLM with model: {model_name}")
     
     def generate(self, messages: List[Dict], **kwargs) -> str:
         """
@@ -44,12 +46,16 @@ class AzureOpenAILLM(BaseLLM):
         Returns:
             The generated text response
         """
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            **kwargs
-        )
-        return response.choices[0].message.content
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                **kwargs
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Error in generate: {str(e)}")
+            raise
     
     def generate_stream(self, messages: List[Dict], **kwargs):
         """
@@ -167,7 +173,7 @@ class AsyncAzureOpenAILLM(BaseLLM):
             )
             return response.choices[0].message.content
         except Exception as e:
-            print(f"Error in generate: {str(e)}")
+            logger.error(f"Error in generate: {str(e)}")
             raise
     
     async def generate_stream(self, messages: List[Dict], **kwargs) -> AsyncGenerator[str, None]:
@@ -197,7 +203,7 @@ class AsyncAzureOpenAILLM(BaseLLM):
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
         except Exception as e:
-            print(f"Error in generate_stream: {str(e)}")
+            logger.error(f"Error in generate_stream: {str(e)}")
             raise
     
     @retry(stop=stop_after_attempt(3), wait=wait_random_exponential(min=1, max=10))
@@ -229,7 +235,7 @@ class AsyncAzureOpenAILLM(BaseLLM):
                 results.append(response.choices[0].message.content)
             return results
         except Exception as e:
-            print(f"Error in batch_generate: {str(e)}")
+            logger.error(f"Error in batch_generate: {str(e)}")
             raise
     
     def _get_default_params(self) -> Dict[str, Any]:

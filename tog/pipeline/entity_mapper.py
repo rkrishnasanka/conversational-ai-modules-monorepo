@@ -2,7 +2,7 @@ from pprint import pprint
 from dotenv import load_dotenv
 from typing import List
 from tog.pipeline.mapping_handler import MappingHandler, Neo4jMappingHandler
-from tog.utils.logger import setup_logger
+from tog.utils.logger import console_logger as logger
 from tog.models.entity import Entity
 from tog.kgs import KnowledgeGraph, Neo4jKnowledgeGraph
 
@@ -13,7 +13,7 @@ class EntityMapper:
     def __init__(self, kg: KnowledgeGraph, mapping_handler: MappingHandler):
         self.kg = kg
         self.mapping_handler = mapping_handler
-        self.logger = setup_logger(__name__)
+        self.logger = logger  # Using the package-level console logger
 
     def map_entities(self, extracted_entities: List[str]) -> List[Entity]:
         """

@@ -1,4 +1,3 @@
-import logging
 from typing import List, Optional
 
 from tog.llms import BaseLLM
@@ -43,7 +42,6 @@ class ToG:
         """
         self.llm = llm
         self.kg = kg
-        self.logger = logging.getLogger(self.__class__.__name__)
         
         # Set up entity extractor
         self.entity_extractor = entity_extractor or self._create_default_entity_extractor()
@@ -66,7 +64,6 @@ class ToG:
                 return GroqEntityExtractor(model_name=model_name)
         
         # Default to using the same LLM type with a basic wrapper
-        self.logger.warning("Using default entity extractor configuration")
         return AzureOpenAIEntityExtractor(model_name=DEFAULT_MODEL)
     
     def _create_default_entity_mapper(self) -> EntityMapper:
@@ -93,18 +90,13 @@ class ToG:
         Returns:
             A dictionary containing the answer and the explored paths
         """
-        self.logger.info(f"Starting exploration for query: {query}")
         
         # Step 1: Extract entities from query if not provided
         if not initial_entities:
-            self.logger.info("Extracting entities from query")
-            
             # Extract entity names using the entity extractor
             extracted_entity_names = self.entity_extractor.extract_entities(query)
-            self.logger.info(f"Extracted entity names: {extracted_entity_names}")
             
             if not extracted_entity_names:
-                self.logger.warning("No entities found in query. Cannot start exploration.")
                 return {
                     "success": False,
                     "answer": "I couldn't identify any entities to explore in your query.",
@@ -113,10 +105,8 @@ class ToG:
             
             # Map extracted entities to knowledge graph entities
             initial_entities = self.entity_mapper.map_entities(extracted_entity_names)
-            self.logger.info(f"Mapped entities: {[e.name for e in initial_entities]}")
         
         if not initial_entities:
-            self.logger.warning("No entities could be mapped to the knowledge graph. Cannot start exploration.")
             return {
                 "success": False,
                 "answer": "I couldn't find any entities in your query that match our knowledge graph.",
@@ -153,7 +143,6 @@ class ToG:
         best_paths = exploration_loop.explore(initial_entities)
         
         if not best_paths:
-            self.logger.warning("No relevant paths found during exploration.")
             return {
                 "success": False,
                 "answer": "I couldn't find relevant information to answer your query.",

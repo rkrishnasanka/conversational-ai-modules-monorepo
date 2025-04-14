@@ -9,6 +9,7 @@ from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.relation import Relation
 from tog.models.triple import Triple
+from tog.utils.logger import console_logger as logger
 
 class EntityExplorer(ABC):
     """
@@ -37,7 +38,7 @@ class EntityExplorer(ABC):
         self.query = query
         self.max_entities_per_round = max_entities_per_round
         self.system_prompt = system_prompt or "You are a helpful assistant specialized in entity analysis."
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger  # Using the package-level console logger
     
     def explore_entities(self, entity: Entity, relations: List[Relation]) -> List[Tuple[Entity, Relation, Entity]]:
         """

@@ -10,10 +10,7 @@ import json
 
 from tog.utils import PromptLoader
 from tog.models.response import ExtractionResponse
-from tog.utils.logger import setup_logger
-
-# Set up logger for this module
-logger = setup_logger(name="entity_extractor", log_filename="entity_extractor.log")
+from tog.utils.logger import console_logger as logger
 
 class EntityExtractor(ABC):
     @abstractmethod
