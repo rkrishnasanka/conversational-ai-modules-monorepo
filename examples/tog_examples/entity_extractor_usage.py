@@ -1,10 +1,12 @@
+#!/usr/bin/env python
+# Example usage of the entity extractor module
+
 import os
 from pprint import pprint
 from dotenv import load_dotenv
 import logging
 
-#!/usr/bin/env python
-# Example usage of the entity extractor module
+
 
 # Import the entity extractors
 from tog.pipeline.entity_extractor import (
