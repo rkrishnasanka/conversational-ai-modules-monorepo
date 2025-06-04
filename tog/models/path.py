@@ -4,6 +4,7 @@ from typing import List
 from tog.models.entity import Entity
 from tog.models.relation import Relation
 from tog.models.triple import Triple
+from tog.models.path import Path
 
 @dataclass
 class Path:
@@ -41,7 +42,7 @@ class TopNPaths:
         if self.heap is None:
             self.heap = []
     
-    def add_path(self, path, confidence):
+    def add_path(self, path: Path, confidence: float):
         # Use a counter to break ties when confidence values are equal
         self._counter += 1
         # Store as (priority, counter, path) to handle ties properly
