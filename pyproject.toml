@@ -9,7 +9,10 @@ packages = [
     { include = "nlqs" },
     { include = "expert_system" },
     { include = "tot" },
-    { include = "utils" }
+    { include = "utils" },
+    { include = "tog"},
+    { include = "knowledge_graph"},
+    { include = "state_machine" },
 ]
 
 [tool.poetry.dependencies]
@@ -48,7 +51,6 @@ mypy = "^1.5.1"
 isort = "^5.12.0"
 pandas-stubs = "^2.2.2.240603"
 pytest = "^8.2.2"
-gradio = "^4.37.2"
 pytest-dotenv = "^0.5.2"
 pylint = "^3.3.1"
 
