@@ -3,13 +3,9 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-import openai
-from openai.types.chat.chat_completion_system_message_param import (
-    ChatCompletionSystemMessageParam,
-)
-from openai.types.chat.chat_completion_user_message_param import (
-    ChatCompletionUserMessageParam,
-)
+from openai import AzureOpenAI
+from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
+from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
 from tot.intent_classifier import IntentClassifier
 from tot.sample_data_manager import SampleDataManager
@@ -20,42 +16,54 @@ from tot.thought_generator import ThoughtGenerator
 class TreeOfThoughts:
     """
     A class to implement the Tree of Thoughts methodology for processing user input and generating analysis.
-
-    This class orchestrates the process of intent classification, thought generation, state evaluation,
-    and final output generation based on user input and sample data.
     """
 
     def __init__(
         self,
         api_key: str,
+        azure_endpoint: str,
+        api_version: str,
+        deployment_name: str,
         sample_data: str,
         classification_prompt: str,
         thought_generation_prompt: Optional[str],
         state_evaluation_prompt: str,
         json_output_prompt: str,
     ):
-        """Initialize the TreeOfThoughts class with the required parameters.
-
-        Args:
-            api_key (str): The OpenAI API key.
-            sample_data (str): The sample data to be used in the analysis.
-            classification_prompt (str): The prompt for classifying the user's intent.
-            thought_generation_prompt (Optional[str]): The prompt for generating thoughts.
-            state_evaluation_prompt (str): The prompt for evaluating the state.
-            json_output_prompt (str): The prompt for generating the final JSON output.
         """
-        openai.api_key = api_key
+        Initialize the TreeOfThoughts class with Azure OpenAI client and required components.
+        """
+        self.client = AzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+        )
+        self.deployment_name = deployment_name
 
         self.sample_data_manager = SampleDataManager(sample_data)
         self.intent_classifier = IntentClassifier(
             api_key=api_key,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+            deployment_name=deployment_name,
             classification_prompt=classification_prompt,
         )
-        self.thought_generator = ThoughtGenerator(api_key=api_key, thought_generation_prompt=thought_generation_prompt)
-        self.state_evaluator = StateEvaluator(api_key=api_key, evaluation_prompt=state_evaluation_prompt)
+        self.thought_generator = ThoughtGenerator(
+            api_key=api_key,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+            deployment_name=deployment_name,
+            thought_generation_prompt=thought_generation_prompt,
+        )
+        self.state_evaluator = StateEvaluator(
+            api_key=api_key,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+            deployment_name=deployment_name,
+            evaluation_prompt=state_evaluation_prompt,
+        )
 
         self.json_output_prompt = json_output_prompt
-
         self.logger = logging.getLogger(__name__)
 
     def solve(
@@ -66,22 +74,6 @@ class TreeOfThoughts:
         max_steps: int = 3,
         best_states_count: int = 2,
     ) -> Dict[str, Any]:
-        """Solve the problem based on the user input and chat history.
-
-        Args:
-            user_input (str): The user's query or input.
-            chat_history (List[str]): The history of the chat conversation.
-            num_thoughts (int, optional): Number of thoughts to generate at each step. Defaults to 3.
-            max_steps (int, optional): Maximum number of steps for the tree search. Defaults to 3.
-            best_states_count (int, optional): Number of best states to retain at each step. Defaults to 2.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the summary, quantitative data, qualitative data,
-                            user requested columns, and intent.
-
-        Raises:
-            ValueError: If the user_input is empty.
-        """
         if not user_input:
             raise ValueError("user_input must not be empty")
 
@@ -139,18 +131,23 @@ class TreeOfThoughts:
             ChatCompletionUserMessageParam(role="user", content=prompt),
         ]
 
-        self.logger.info("Sending request to OpenAI API")
-        response = openai.chat.completions.create(model="gpt-4o", messages=messages, n=1, temperature=0.2)
-        self.logger.info("Received response from OpenAI API")
+        self.logger.info("Sending request to Azure OpenAI API")
+        response = self.client.chat.completions.create(
+            model=self.deployment_name,
+            messages=messages,
+            temperature=0.2,
+        )
+        self.logger.info("Received response from Azure OpenAI API")
 
         content = response.choices[0].message.content
+        
+        # print(f"Response content: {content}")
+        
         if content is None:
-            raise ValueError("No content received in response to the OpenAI completion request")
+            raise ValueError("No content received in response to the Azure OpenAI completion request")
 
         json_string = content.strip()
-
-        json_string = re.sub("```json|```", "", json_string)
-        json_string = json_string.strip()
+        json_string = re.sub("```json|```", "", json_string).strip()
 
         try:
             json_output = json.loads(json_string)

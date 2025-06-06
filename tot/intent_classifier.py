@@ -1,26 +1,36 @@
 from typing import Optional
-
 import openai
-from openai.types.chat.chat_completion_system_message_param import (
-    ChatCompletionSystemMessageParam,
-)
-from openai.types.chat.chat_completion_user_message_param import (
-    ChatCompletionUserMessageParam,
-)
+from openai import AzureOpenAI
+from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
+from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
 
 class IntentClassifier:
-    def __init__(self, api_key: str, classification_prompt: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: str,
+        azure_endpoint: str,
+        api_version: str,
+        deployment_name: str,
+        classification_prompt: Optional[str] = None
+    ):
         """
-        Classify the intent of the user input using OpenAI's GPT model.
+        Classify the intent of user input using Azure OpenAI's GPT deployment.
 
         Args:
-            user_input (str): The user's input to classify.
-
-        Returns:
-            str: The classified intent as a string (1-5).
+            api_key (str): Azure OpenAI API key.
+            api_base (str): Azure OpenAI API base URL.
+            api_version (str): API version (e.g., "2023-12-01-preview").
+            deployment_name (str): The name of your deployed GPT model.
+            classification_prompt (str, optional): Custom prompt template.
         """
-        openai.api_key = api_key
+        
+        self.client = AzureOpenAI(
+            api_key=api_key,
+            api_version=api_version,
+            azure_endpoint=azure_endpoint,
+        )
+        self.deployment_name = deployment_name
         self.classification_prompt = classification_prompt or self.default_classification_prompt()
 
     @staticmethod
@@ -41,7 +51,8 @@ class IntentClassifier:
         """
 
     def classify_intent(self, user_input: str) -> str:
-        """Classify the intent of the user input.
+        """
+        Classify the intent of the user input.
 
         Args:
             user_input (str): The user's input to classify.
@@ -50,6 +61,7 @@ class IntentClassifier:
             str: The classified intent as a string (1-5).
         """
         prompt = self.classification_prompt.format(user_input=user_input)
+
         messages = [
             ChatCompletionSystemMessageParam(
                 role="system", content="You are a helpful assistant classifying user intent."
@@ -57,14 +69,12 @@ class IntentClassifier:
             ChatCompletionUserMessageParam(role="user", content=prompt),
         ]
 
-        response = openai.chat.completions.create(
-            model="gpt-4o", messages=messages, max_tokens=100, n=1, temperature=0.3
+        response = self.client.chat.completions.create(
+            model=self.deployment_name,  # this should be the deployment name, not a model ID like "gpt-4"
+            messages=messages,
+            max_tokens=50,
+            temperature=0.3,
         )
 
-        choice = response.choices[0]
-        message_content = choice.message.content
-        if message_content is not None:
-            intent = message_content.strip()
-            return intent
-        else:
-            return "4"  # Default to "Information request" if no content is received
+        message_content = response.choices[0].message.content
+        return message_content.strip() if message_content else "4"
