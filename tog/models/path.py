@@ -4,7 +4,6 @@ from typing import List
 from tog.models.entity import Entity
 from tog.models.relation import Relation
 from tog.models.triple import Triple
-from tog.models.path import Path
 
 @dataclass
 class Path:
