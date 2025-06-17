@@ -1,30 +1,41 @@
-from typing import List, Literal, Optional
+from typing import List, Optional
 
-import openai
-from openai.types.chat.chat_completion_system_message_param import (
-    ChatCompletionSystemMessageParam,
-)
-from openai.types.chat.chat_completion_user_message_param import (
-    ChatCompletionUserMessageParam,
-)
+from openai import AzureOpenAI
+from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
+from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
 
 class ThoughtGenerator:
-    def __init__(self, api_key: str, thought_generation_prompt: Optional[str] = None):
-        """ThoughtGenerator class for generating thoughts for problem-solving.
+    def __init__(
+        self,
+        api_key: str,
+        azure_endpoint: str,
+        api_version: str,
+        deployment_name: str,
+        thought_generation_prompt: Optional[str] = None,
+    ):
+        """
+        ThoughtGenerator class for generating thoughts using Azure OpenAI.
 
         Args:
-            api_key (str):
-            thought_generation_prompt (Optional[str], optional): _description_. Defaults to None.
+            api_key (str): Azure OpenAI API key.
+            azure_endpoint (str): Azure resource endpoint URL.
+            api_version (str): API version (e.g., "2023-12-01-preview").
+            deployment_name (str): Deployed model name (e.g., "gpt-4o").
+            thought_generation_prompt (Optional[str]): Optional custom prompt.
         """
-        self.api_key = api_key
-        openai.api_key = self.api_key
-        self.thought_generation_prompt = thought_generation_prompt or self.default_thought_generation_prompt()
+        self.client = AzureOpenAI(
+            api_key=api_key,
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+        )
+        self.deployment_name = deployment_name
+        self.thought_generation_prompt = (
+            thought_generation_prompt or self.default_thought_generation_prompt()
+        )
 
     @staticmethod
     def default_thought_generation_prompt() -> str:
-        """Return the default thought generation prompt for the thought generator."""
-
         return """
         Given the current state of the problem:
 
@@ -40,41 +51,41 @@ class ThoughtGenerator:
         """
 
     def generate_thoughts(self, current_state: str, num_thoughts: int) -> List[str]:
-        """Generate thoughts for problem-solving based on the current state.
+        """
+        Generate thoughts based on the current problem-solving state.
 
         Args:
             current_state (str): The current state of the problem.
-            num_thoughts (int): The number of thoughts to generate.
-
-        Raises:
-            Exception: If no thoughts are generated.
+            num_thoughts (int): Number of thoughts to generate.
 
         Returns:
             List[str]: A list of generated thoughts.
         """
         prompt = self.thought_generation_prompt.format(
-            current_state=current_state, num_thoughts=num_thoughts)
+            current_state=current_state, num_thoughts=num_thoughts
+        )
 
         messages = [
             ChatCompletionSystemMessageParam(
-                role="system", content="You are a helpful assistant generating thoughts for problem-solving."
+                role="system",
+                content="You are a helpful assistant generating thoughts for problem-solving."
             ),
             ChatCompletionUserMessageParam(role="user", content=prompt),
         ]
 
-        response = openai.chat.completions.create(
-            model="gpt-4o",
+        response = self.client.chat.completions.create(
+            model=self.deployment_name,
             messages=messages,
-            # max_tokens=100,
-            n=1,
             temperature=0.7,
         )
 
         thoughts_text = response.choices[0].message.content
-        if thoughts_text is not None:
-            thoughts_text = thoughts_text.strip()
-            thoughts = [thought.split(". ", 1)[1] for thought in thoughts_text.split(
-                "\n") if ". " in thought]
-            return thoughts[:num_thoughts]
-        else:
+        if not thoughts_text:
             raise Exception("No thoughts generated.")
+
+        thoughts = [
+            thought.split(". ", 1)[1]
+            for thought in thoughts_text.strip().split("\n")
+            if ". " in thought
+        ]
+        return thoughts[:num_thoughts]
