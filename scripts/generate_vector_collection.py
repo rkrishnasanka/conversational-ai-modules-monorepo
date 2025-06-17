@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import chromadb
-from discord_bot.parameters import (
+
+from scripts.parameters import (
     CHROMA_COLLECTION_NAME,
     OUTPUT_COLUMNS,
     SQL_TABLE_NAME,
@@ -14,7 +15,6 @@ from discord_bot.parameters import (
     SUPABASE_USER,
     URL_COLUMN,
 )
-
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 from nlqs.nlqs import ChromaDBConfig
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     connection_driver.connect()
 
     # ChromaDB configuration
-    chroma_config = ChromaDBConfig(collection_name=CHROMA_COLLECTION_NAME)  # local chroma
+    chroma_config = ChromaDBConfig()  # local chroma
 
     # remote config
     chroma_config = ChromaDBConfig(CHROMA_COLLECTION_NAME, is_local=False, host="localhost", port=8000)
@@ -130,4 +130,4 @@ if __name__ == "__main__":
     else:
         chroma_client = chromadb.HttpClient(port=chroma_config.port, host=chroma_config.host)
 
-    generate_chroma_collection(chroma_config.collection_name, chroma_client, connection_driver)
+    # generate_chroma_collection(chroma_config.collection_name, chroma_client, connection_driver)

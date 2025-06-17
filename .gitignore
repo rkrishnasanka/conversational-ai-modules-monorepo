@@ -65,6 +65,7 @@ target/
 
 #chroma folder
 chroma
+.chroma
 
 .env
 

@@ -1,17 +1,28 @@
+import os
+import random
 import sqlite3
 from pathlib import Path
+from typing import Callable, List
 from unittest.mock import Mock, patch
+import uuid
 
+import pandas as pd
 import psycopg2
 import pytest
+from langchain_openai import OpenAIEmbeddings
+from langchain_openai import AzureOpenAIEmbeddings
+from pydantic import SecretStr
 
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
+from nlqs.parameters import DEFAULT_DB_NAME, DEFAULT_TABLE_NAME
+from nlqs.vectordb_driver import ChromaDBConfig, VectorDBDriver
+from utils.llm import get_default_embedding_function
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def sqlite_driver():
-    sqlite_config = SQLiteConnectionConfig(db_file=Path("aegion.db"), dataset_table_name="new_dataset")
+    sqlite_config = SQLiteConnectionConfig(db_file=Path("test_database.db"), dataset_table_name=DEFAULT_TABLE_NAME)
 
     db_driver = SQLiteDriver(sqlite_config=sqlite_config)
 
@@ -19,26 +30,24 @@ def sqlite_driver():
 
 
 @pytest.fixture(scope="function")
-def setup_database():
+def setup_sqlite_database():
     """Setup method to create a test database and driver instance."""
     test_db_file = Path("test_database.db")
-    sqlite_config = SQLiteConnectionConfig(db_file=test_db_file, dataset_table_name="test_table")
-    driver = SQLiteDriver(sqlite_config)
 
     # Create a test database and table
     with sqlite3.connect(test_db_file) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            """
-            CREATE TABLE test_table (
+            f"""
+            CREATE TABLE {DEFAULT_TABLE_NAME} (
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 value REAL
             )
             """
         )
-        cursor.execute("INSERT INTO test_table (name, value) VALUES ('John', 10.5)")
-        cursor.execute("INSERT INTO test_table (name, value) VALUES ('Jane', 20.0)")
+        cursor.execute(f"INSERT INTO {DEFAULT_TABLE_NAME} (name, value) VALUES ('John', 10.5)")
+        cursor.execute(f"INSERT INTO {DEFAULT_TABLE_NAME} (name, value) VALUES ('Jane', 20.0)")
 
         # Create a table for column descriptions
         cursor.execute(
@@ -96,39 +105,105 @@ def setup_database():
             """
         )
 
-    yield driver
+    yield
 
     # Cleanup method to remove the test database file
     test_db_file.unlink(missing_ok=True)
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def pg_config():
     return PostgresConnectionConfig(
         host="localhost",
         port=5432,
         user="postgres",
-        password="password",
-        database_name="test_db",
-        dataset_table_name="test_table",
+        password="postgres",
+        database_name="postgres",
+        dataset_table_name=DEFAULT_TABLE_NAME,
         uri_column="url",
     )
 
 
-@pytest.fixture
-def driver(pg_config):
+@pytest.fixture(scope="function")
+def setup_postgres_database():
+    """Setup method to create a test database and driver instance."""
+    with psycopg2.connect(
+        host="localhost", port=5432, user="postgres", password="postgres", database="postgres"
+    ) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            CREATE TABLE {DEFAULT_TABLE_NAME} (
+                id SERIAL PRIMARY KEY,
+                name TEXT,
+                value REAL
+            )
+            """
+        )
+        cursor.execute(f"INSERT INTO {DEFAULT_TABLE_NAME} (name, value) VALUES ('John', 10.5)")
+        cursor.execute(f"INSERT INTO {DEFAULT_TABLE_NAME} (name, value) VALUES ('Jane', 20.0)")
+
+    yield
+
+    with psycopg2.connect(
+        host="localhost", port=5432, user="postgres", password="postgres", database="postgres"
+    ) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(f"DROP TABLE {DEFAULT_TABLE_NAME}")
+
+
+@pytest.fixture(scope="function")
+def postgres_driver(pg_config, setup_postgres_database) -> PostgresDriver:
     return PostgresDriver(pg_config)
 
 
-@pytest.fixture
-def mock_connection():
-    mock_connection = Mock(spec=psycopg2.extensions.connection)
-    mock_cursor = Mock(spec=psycopg2.extensions.cursor)
-    mock_connection.cursor.return_value = mock_cursor
-    return mock_connection
+@pytest.fixture(scope="function")
+def chroma_config():
+    return ChromaDBConfig(persist_path=Path("./chroma"), is_local=True)
 
 
-@pytest.fixture(autouse=True)
-def patch_psycopg2_connect(mock_connection):
-    with patch("psycopg2.connect", return_value=mock_connection) as mock:
-        yield mock
+@pytest.fixture(scope="function")
+def vectordb_driver(chroma_config, embedding_function):
+
+    VectorDBDriver.purge_nlqs_vectordb(chroma_config)
+
+    VectorDBDriver.initialize_nlqs_vectordb(chroma_config)
+
+    # Load the column and data description datasets
+    column_info_df = pd.read_csv("./nlqs/tests/data/column_descriptions_with_embeddings.tsv", sep="\t")
+    data_info_df = pd.read_csv("./nlqs/tests/data/data_descriptions_with_embeddings.tsv", sep="\t")
+    table_info_df = pd.read_csv("./nlqs/tests/data/table_descriptions_with_embeddings.tsv", sep="\t")
+
+    VectorDBDriver.populate_nlqs_column_info(
+        chroma_config,
+        column_info_df,
+    )
+
+    VectorDBDriver.populate_nlqs_dataset_info(
+        chroma_config,
+        data_info_df,
+    )
+
+    VectorDBDriver.populate_nlqs_table_info(
+        chroma_config,
+        table_info_df,
+    )
+
+    vectordb_driver = VectorDBDriver(chroma_config, embedding_function)
+
+    return vectordb_driver
+
+
+@pytest.fixture(scope="function")
+def embedding_function() -> (
+    Callable[[str], List[float]]
+):
+
+    # Initialize the Azure OpenAI Embedding model
+    embedding_model = get_default_embedding_function(use_azure=True)
+
+    # Create an embedding function
+    embedding_function = embedding_model.embed_query
+
+    return embedding_function

@@ -3,7 +3,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import pandas as pd
-from discord_bot.parameters import (
+from langchain.chains import LLMChain
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
+
+from scripts.parameters import (
     CHROMA_COLLECTION_NAME,
     OUTPUT_COLUMNS,
     SQL_TABLE_NAME,
@@ -15,12 +21,6 @@ from discord_bot.parameters import (
     SUPABASE_USER,
     URL_COLUMN,
 )
-from langchain.chains import LLMChain
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
-from pydantic.v1 import SecretStr
-
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
 from nlqs.parameters import OPENAI_API_KEY
