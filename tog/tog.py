@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from tog.llms import BaseLLM
+from llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.path import Path
@@ -236,7 +236,7 @@ class ToG:
 # Example usage
 def main():
     # This is a demonstration - you'd need to implement or import the actual LLM and KG classes
-    from tog.llms.azure_openai_llm import AzureOpenAILLM
+    from llms.azure_openai_llm import AzureOpenAILLM
     from tog.kgs.neo4j_kg import Neo4jKnowledgeGraph
     
     # Initialize components

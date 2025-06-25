@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
 
-from tog.llms import BaseLLM
+from llms import BaseLLM
 from tog.kgs import KnowledgeGraph
 from tog.models.entity import Entity
 from tog.models.relation import Relation
@@ -215,7 +215,7 @@ class Neo4jEntityExplorer(EntityExplorer):
 if __name__ == "__main__":
     # Example usage
     import logging
-    from tog.llms import AzureOpenAILLM
+    from llms import AzureOpenAILLM
     from tog.kgs import Neo4jKnowledgeGraph
     from tog.models.entity import Entity
     from tog.models.relation import Relation

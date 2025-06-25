@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from pprint import pprint
 from typing import List
 
-from tog.llms.base_llm import BaseLLM
-from tog.llms.groq_llm import GroqLLM
-from tog.llms.azure_openai_llm import AzureOpenAILLM
+from llms.base_llm import BaseLLM
+from llms.groq_llm import GroqLLM
+from llms.azure_openai_llm import AzureOpenAILLM
 from tog.models.entity import Entity
 import json
 
