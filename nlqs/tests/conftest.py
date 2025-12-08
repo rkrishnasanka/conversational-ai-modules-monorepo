@@ -228,12 +228,22 @@ def vectordb_driver(chroma_config, embedding_function):
 
 
 @pytest.fixture(scope="function")
-def embedding_function() -> (
-    Callable[[str], List[float]]
-):
-
+def embedding_function() -> Callable[[str], List[float]]:
+    """Azure OpenAI embedding function fixture."""
     # Initialize the Azure OpenAI Embedding model
-    embedding_model = get_default_embedding_function(use_azure=True)
+    embedding_model = get_default_embedding_function(use_azure=True, use_local=False)
+
+    # Create an embedding function
+    embedding_function = embedding_model.embed_query
+
+    return embedding_function
+
+
+@pytest.fixture(scope="function")
+def bge_embedding_function() -> Callable[[str], List[float]]:
+    """Local BGE embedding function fixture."""
+    # Initialize the local BGE Embedding model
+    embedding_model = get_default_embedding_function(use_local=True)
 
     # Create an embedding function
     embedding_function = embedding_model.embed_query

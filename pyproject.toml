@@ -33,7 +33,7 @@ langchain = "^0.3.0"
 sqlalchemy = "^2.0.35"
 tqdm = "^4.66.5"
 # TODO: Workaround for the issue with torch 2.4.1 on macos on intel
-torch = "2.0.0"
+torch = ">=2.1"
 sentence-transformers = "^3.2.0"
 transformers = "^4.45.2"
 langchain-huggingface = "^0.1.0"

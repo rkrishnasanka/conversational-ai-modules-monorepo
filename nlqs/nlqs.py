@@ -82,9 +82,9 @@ class NLQS:
         self.llm = get_default_llm(use_azure=True)
         logger.info("LLM initialized")
 
-        # Initialize the Embedding model
+        # Initialize the Embedding model - CHANGED: Use local BGE model instead of Azure
         logger.debug("Initializing embedding model...")
-        embedding_model = get_default_embedding_function(use_azure=True) 
+        embedding_model = get_default_embedding_function(use_local=True) 
         embedding_function = embedding_model.embed_query
         logger.info("Embedding model initialized")
 
