@@ -1,7 +1,7 @@
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, cast
 
 # Configure logging
 logging.basicConfig(
@@ -10,12 +10,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from pydantic import SecretStr
-
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
-from nlqs.parameters import DEFAULT_DB_NAME, DEFAULT_TABLE_NAME, OPENAI_API_KEY
 from nlqs.query_construction import (
     construct_categorical_search_query_fragments,
     construct_descriptive_search_query_fragments,
@@ -26,25 +22,9 @@ from nlqs.query_construction import (
 from nlqs.summarization import summarize
 from nlqs.vectordb_driver import ChromaDBConfig, VectorDBDriver
 from nlqs.search_field import SearchField
+# Add Neon imports
+from nlqs.neondb_driver import NeonDBConfig, NeonVectorDBDriver
 from utils.llm import get_default_llm, get_default_embedding_function
-
-# Create a logger object
-logger = logging.getLogger(__name__)
-
-# Set the logging level (e.g., DEBUG, INFO, WARNING, ERROR)
-logger.setLevel(logging.INFO)
-
-# Create a stream handler to output logs to the console
-stream_handler = logging.StreamHandler()
-
-# Create a formatter to format the log messages
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-
-# Add the formatter to the stream handler
-stream_handler.setFormatter(formatter)
-
-# Add the stream handler to the logger
-logger.addHandler(stream_handler)
 
 
 @dataclass
@@ -56,12 +36,16 @@ class NLQSResult:
 
 class NLQS:
     def __init__(
-        self, connection_config: Union[SQLiteConnectionConfig, PostgresConnectionConfig], chroma_config: ChromaDBConfig
+        self,
+        connection_config: Union[SQLiteConnectionConfig, PostgresConnectionConfig],
+        chroma_config: Union[ChromaDBConfig, NeonDBConfig],
     ) -> None:
         logger.info("Initializing NLQS...")
         
         # Initialize database connection
         self.connection_config = connection_config
+        # Store vector backend configuration (can be Chroma or Neon)
+        self.chroma_config = chroma_config
         if isinstance(connection_config, SQLiteConnectionConfig):
             logger.info("Using SQLite database")
             self.connection_driver = SQLiteDriver(connection_config)
@@ -88,9 +72,14 @@ class NLQS:
         embedding_function = embedding_model.embed_query
         logger.info("Embedding model initialized")
 
-        self.chroma_config = chroma_config
-        logger.debug("Initializing vector database...")
-        self.vectordb_driver = VectorDBDriver(chroma_config, embedding_function=embedding_function)
+        # Initialize the vector backend: Chroma (default) or Neon if NeonDBConfig passed
+        if isinstance(self.chroma_config, ChromaDBConfig):
+            self.vectordb_driver = VectorDBDriver(self.chroma_config, embedding_function=embedding_function)
+        elif isinstance(self.chroma_config, NeonDBConfig):
+            self.vectordb_driver = NeonVectorDBDriver(self.chroma_config, embedding_function=embedding_function)
+        else:
+            raise ValueError("Invalid vector backend configuration")
+
         logger.info("Vector database initialized")
 
         self.table_name = connection_config.dataset_table_name
@@ -98,11 +87,12 @@ class NLQS:
         self.output_columns = connection_config.output_columns
 
         # Test if all infrastructure is available
-        logger.debug("Checking ChromaDB collections...")
-        if self.vectordb_driver.check_nlqs_collections_exists() is False:
-            logger.error("ChromaDB collections do not exist")
-            raise ValueError("ChromaDB collections do not exist. Please create them.")
-        logger.info("ChromaDB collections verified")
+        logger.debug("Checking vector collections...")
+        if hasattr(self.vectordb_driver, "check_nlqs_collections_exists") and \
+           self.vectordb_driver.check_nlqs_collections_exists() is False:
+            logger.error("Vector collections do not exist")
+            raise ValueError("Vector collections do not exist. Please create them.")
+        logger.info("Vector collections verified")
 
     def execute_nlqs_query_workflow(self, user_input: str, chat_history: List[Tuple[str, str]]) -> NLQSResult:
         logger.info(f"Executing NLQS query workflow for input: {user_input}")
@@ -131,13 +121,14 @@ class NLQS:
         primary_key = driver.get_primary_key(self.table_name)
         logger.debug(f"Using primary key: {primary_key}")
         
-        # Get Chroma Collection
-        logger.debug("Getting Chroma collection...")
-        chroma_data_collection = self.vectordb_driver.dataset_collection
-        if chroma_data_collection is None:
-            logger.error("Chroma Collection not found")
-            raise ValueError("Chroma Collection not found in vectordb. Please create a collection.")
-        logger.debug("Chroma collection retrieved successfully")
+        # Get Vector backend readiness (Chroma exposes dataset_collection; Neon does not)
+        logger.debug("Validating vector backend...")
+        if hasattr(self.vectordb_driver, "dataset_collection"):
+            chroma_data_collection = getattr(self.vectordb_driver, "dataset_collection", None)
+            if chroma_data_collection is None:
+                logger.error("Chroma Collection not found")
+                raise ValueError("Chroma Collection not found in vectordb. Please create a collection.")
+        logger.debug("Vector backend ready")
 
         # Step 5 - check if the user input is empty
         if not user_input.strip():
@@ -159,7 +150,7 @@ class NLQS:
                 categorical_columns=column_descriptions_dict["categorical_columns"],
                 descriptive_columns=column_descriptions_dict["descriptive_columns"],
                 llm=self.llm,
-                vectordb=self.vectordb_driver,
+                vectordb=cast(Any, self.vectordb_driver),
             )
             logger.debug(f"Generated summary: {summarized_input}")
         except Exception as e:
@@ -177,7 +168,7 @@ class NLQS:
                 categorical_columns=column_descriptions_dict["categorical_columns"],
                 descriptive_columns=column_descriptions_dict["descriptive_columns"],
                 llm=self.llm,
-                vectordb=self.vectordb_driver,
+                vectordb=cast(Any, self.vectordb_driver),
             )
             count += 1
             if count == 5:
@@ -221,7 +212,7 @@ class NLQS:
             quantitative_query_fragments = construct_quantitaive_search_query_fragments(numerical_data, self.llm)
             categorical_query_fragments = construct_categorical_search_query_fragments(categorical_data)
             descriptive_query_fragments = construct_descriptive_search_query_fragments(
-                descriptive_data, self.vectordb_driver
+                descriptive_data, cast(Any, self.vectordb_driver)
             )
 
             logger.debug(f"Query fragments constructed - "

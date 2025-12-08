@@ -15,6 +15,7 @@ from pydantic import SecretStr
 
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
 from nlqs.database.sqlite import SQLiteConnectionConfig, SQLiteDriver
+from nlqs.neondb_driver import NeonDBConfig, NeonVectorDBDriver
 from nlqs.parameters import DEFAULT_DB_NAME, DEFAULT_TABLE_NAME
 from nlqs.vectordb_driver import ChromaDBConfig, VectorDBDriver
 from utils.llm import get_default_embedding_function
@@ -249,3 +250,97 @@ def bge_embedding_function() -> Callable[[str], List[float]]:
     embedding_function = embedding_model.embed_query
 
     return embedding_function
+
+
+@pytest.fixture(scope="function")
+def neon_config():
+    """Fixture for NeonDB configuration using environment variable."""
+    conn_string = os.getenv("NEONDB_CONNECTION_STRING")
+    if not conn_string:
+        pytest.skip("NEONDB_CONNECTION_STRING not set in environment")
+    return NeonDBConfig(conn_string=conn_string)
+
+
+@pytest.fixture(scope="function")
+def setup_neondb_vectordb(neon_config, embedding_function):
+    """Setup NeonDB vector database with test data."""
+    # Purge existing data
+    NeonVectorDBDriver.purge_nlqs_vectordb(neon_config)
+    
+    # Initialize schema
+    NeonVectorDBDriver.initialize_nlqs_vectordb(neon_config)
+    
+    # Create driver instance
+    neon_driver = NeonVectorDBDriver(neon_config, embedding_function)
+    
+    # Load the test data from TSV files
+    column_info_df = pd.read_csv("./nlqs/tests/data/column_descriptions_with_embeddings.tsv", sep="\t")
+    data_info_df = pd.read_csv("./nlqs/tests/data/data_descriptions_with_embeddings.tsv", sep="\t")
+    table_info_df = pd.read_csv("./nlqs/tests/data/table_descriptions_with_embeddings.tsv", sep="\t")
+    
+    # Prepare records for population
+    column_records = []
+    for _, row in column_info_df.iterrows():
+        # Parse embedding string to list of floats
+        embedding_str = row.get("embedding", "[]")
+        if isinstance(embedding_str, str):
+            import ast
+            embedding = ast.literal_eval(embedding_str)
+        else:
+            embedding = embedding_str
+        
+        column_records.append({
+            "db_name": row.get("db_name", DEFAULT_DB_NAME),
+            "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
+            "column_name": row["column_name"],
+            "column_type": row["column_type"],
+            "description": row["description"],
+            "embedding": embedding,
+        })
+    
+    data_records = []
+    for _, row in data_info_df.iterrows():
+        embedding_str = row.get("embedding", "[]")
+        if isinstance(embedding_str, str):
+            import ast
+            embedding = ast.literal_eval(embedding_str)
+        else:
+            embedding = embedding_str
+        
+        data_records.append({
+            "db_name": row.get("db_name", DEFAULT_DB_NAME),
+            "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
+            "column_name": row["column_name"],
+            "lookup_key_column_name": row["lookup_key_column_name"],
+            "lookup_key_column_value": str(row["lookup_key_column_value"]),
+            "description": row["description"],
+            "embedding": embedding,
+        })
+    
+    table_records = []
+    for _, row in table_info_df.iterrows():
+        embedding_str = row.get("embedding", "[]")
+        if isinstance(embedding_str, str):
+            import ast
+            embedding = ast.literal_eval(embedding_str)
+        else:
+            embedding = embedding_str
+        
+        table_records.append({
+            "db_name": row.get("db_name", DEFAULT_DB_NAME),
+            "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
+            "description": row["description"],
+            "embedding": embedding,
+        })
+    
+    # Populate the NeonDB tables
+    neon_driver.populate_column_info(column_records)
+    neon_driver.populate_dataset_info(data_records)
+    neon_driver.populate_table_descriptions(table_records)
+    
+    yield neon_driver
+    
+    # Cleanup
+    neon_driver.close()
+    NeonVectorDBDriver.purge_nlqs_vectordb(neon_config)
+
