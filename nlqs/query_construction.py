@@ -5,7 +5,7 @@ import logging
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI, OpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI, OpenAI
 
 from nlqs.parameters import DEFAULT_DB_NAME, DEFAULT_TABLE_NAME
 from nlqs.vectordb_driver import VectorDBDriver
@@ -29,7 +29,7 @@ def join_fragments(fragments: List[str], joiner: str = "AND") -> str:
 def parse_descriptive_numerical_condition(
     column_name: str, 
     descriptive_condition: str, 
-    llm: Union[ChatOpenAI, OpenAI]
+    llm: Union[ChatOpenAI, OpenAI, AzureChatOpenAI]
 ) -> str:
     """Convert descriptive numerical conditions to SQL conditions using LLM.
     
@@ -105,7 +105,7 @@ Return only the numerical condition (without quotes) or "UNABLE_TO_PARSE":
 
 def construct_quantitaive_search_query_fragments(
     quantitaive_data: Dict[str, str], 
-    llm: Union[ChatOpenAI, OpenAI] = None
+    llm: Union[ChatOpenAI, OpenAI, AzureChatOpenAI, None] = None
 ) -> List[str]:
     """Creates an SQL query from a dictionary of quantitative data.
 

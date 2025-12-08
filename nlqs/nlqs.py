@@ -198,8 +198,8 @@ class NLQS:
 
         # TODO: Figure out other intents in the future
         else:
-            print("NLQS intent")
-
+            ...
+            
         # This is the standard workflow for the NLQS
 
         # TODO: We should reenable this        # # Check if the user requested columns exist
@@ -231,18 +231,16 @@ class NLQS:
                         f"Descriptive: {len(descriptive_query_fragments)}")
 
             # Construct a search field that will capture all the data from the user input
-            # if hasattr(self.connection_driver, 'db_config'):
-            #     # Both SQLite and PostgreSQL use db_config, but check if database_name exists
-            #     if hasattr(self.connection_driver.db_config, 'database_name'):
-            #         # PostgreSQL case - has database_name attribute
-            #         database_name = self.connection_driver.db_config.database_name
-            #     else:
-            #         # SQLite case - doesn't have database_name, use default
-            #         database_name = self.connection_driver.db_config.database_name
-            # else:
+            # Determine database name based on driver type
+            if hasattr(self.connection_driver.db_config, 'database_name'):
+                # PostgreSQL case - has database_name attribute
+                database_name = str(self.connection_driver.db_config.database_name)  # type: ignore
+            elif hasattr(self.connection_driver.db_config, 'db_file'):
+                # SQLite case - has db_file attribute
+                database_name = str(self.connection_driver.db_config.db_file)  # type: ignore
+            else:
                 # Fallback
-            database_name = self.connection_driver.db_config.db_file
-
+                database_name = "default_db"
 
             # Then use database_name in the SearchField.construct_search_field call:
             search_field_object = SearchField.construct_search_field(

@@ -126,6 +126,19 @@ EqualsCondition = Tuple[str, str]
 
 @dataclass
 class ChromaDBConfig:
+    """
+    Configuration class for ChromaDB.
+    Args:
+        table_description_collection_name (str): Name of the table description collection.
+        column_info_collection_name (str): Name of the column info collection.
+        dataset_collection_name (str): Name of the dataset collection.
+        persist_path (Path): Path to persist the ChromaDB data.
+        host (str): Hostname for the ChromaDB server.
+        port (int): Port for the ChromaDB server.
+        is_local (bool): Whether to use a local ChromaDB instance.
+        username (Optional[str]): Username for ChromaDB server authentication.
+        password (Optional[str]): Password for ChromaDB server authentication.
+    """
     table_description_collection_name: str = DEFAULT_TABLE_DESCRIPTION_COLLECTION_NAME
     column_info_collection_name: str = DEFAULT_COLUMN_INFO_COLLECTION_NAME
     dataset_collection_name: str = DEFAULT_DATASET_COLLECTION_NAME
