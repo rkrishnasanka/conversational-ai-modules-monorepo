@@ -131,12 +131,12 @@ def setup_postgres_database():
     # Load the product descriptions CSV
     csv_path = Path("./examples/nlqs_demo/product_descriptions.csv")
     products_df = pd.read_csv(csv_path)
-    
+
     with psycopg2.connect(
         host="localhost", port=5432, user="postgres", password="postgres", database="postgres"
     ) as conn:
         cursor = conn.cursor()
-        
+
         # Create table with schema matching the CSV
         cursor.execute(
             f"""
@@ -162,7 +162,7 @@ def setup_postgres_database():
             )
             """
         )
-        
+
         # Insert data from CSV
         for _, row in products_df.iterrows():
             cursor.execute(
@@ -172,9 +172,9 @@ def setup_postgres_database():
                  CustomerRating, MedicalBenefitsReported, RepeatPurchaseFrequency, URL, Description)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                tuple(row)
+                tuple(row),
             )
-        
+
         conn.commit()
 
     yield
@@ -258,26 +258,26 @@ def neon_config():
     conn_string = os.getenv("NEONDB_CONNECTION_STRING")
     if not conn_string:
         pytest.skip("NEONDB_CONNECTION_STRING not set in environment")
-    return NeonDBConfig(conn_string=conn_string)
+    return NeonDBConfig(conn_string=conn_string, embedding_dim=384)
 
 
 @pytest.fixture(scope="function")
-def setup_neondb_vectordb(neon_config, embedding_function):
+def setup_neondb_vectordb(neon_config, bge_embedding_function):
     """Setup NeonDB vector database with test data."""
     # Purge existing data
     NeonVectorDBDriver.purge_nlqs_vectordb(neon_config)
-    
+
     # Initialize schema
     NeonVectorDBDriver.initialize_nlqs_vectordb(neon_config)
-    
+
     # Create driver instance
-    neon_driver = NeonVectorDBDriver(neon_config, embedding_function)
-    
+    neon_driver = NeonVectorDBDriver(neon_config, bge_embedding_function)
+
     # Load the test data from TSV files
     column_info_df = pd.read_csv("./nlqs/tests/data/column_descriptions_with_embeddings.tsv", sep="\t")
     data_info_df = pd.read_csv("./nlqs/tests/data/data_descriptions_with_embeddings.tsv", sep="\t")
     table_info_df = pd.read_csv("./nlqs/tests/data/table_descriptions_with_embeddings.tsv", sep="\t")
-    
+
     # Prepare records for population
     column_records = []
     for _, row in column_info_df.iterrows():
@@ -285,62 +285,70 @@ def setup_neondb_vectordb(neon_config, embedding_function):
         embedding_str = row.get("embedding", "[]")
         if isinstance(embedding_str, str):
             import ast
+
             embedding = ast.literal_eval(embedding_str)
         else:
             embedding = embedding_str
-        
-        column_records.append({
-            "db_name": row.get("db_name", DEFAULT_DB_NAME),
-            "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
-            "column_name": row["column_name"],
-            "column_type": row["column_type"],
-            "description": row["description"],
-            "embedding": embedding,
-        })
-    
+
+        column_records.append(
+            {
+                "db_name": row.get("db_name", DEFAULT_DB_NAME),
+                "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
+                "column_name": row["column_name"],
+                "column_type": row["column_type"],
+                "description": row["description"],
+                "embedding": embedding,
+            }
+        )
+
     data_records = []
     for _, row in data_info_df.iterrows():
         embedding_str = row.get("embedding", "[]")
         if isinstance(embedding_str, str):
             import ast
+
             embedding = ast.literal_eval(embedding_str)
         else:
             embedding = embedding_str
-        
-        data_records.append({
-            "db_name": row.get("db_name", DEFAULT_DB_NAME),
-            "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
-            "column_name": row["column_name"],
-            "lookup_key_column_name": row["lookup_key_column_name"],
-            "lookup_key_column_value": str(row["lookup_key_column_value"]),
-            "description": row["description"],
-            "embedding": embedding,
-        })
-    
+
+        data_records.append(
+            {
+                "db_name": row.get("db_name", DEFAULT_DB_NAME),
+                "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
+                "column_name": row["column_name"],
+                "lookup_key_column_name": row["lookup_key_column_name"],
+                "lookup_key_column_value": str(row["lookup_key_column_value"]),
+                "description": row["description"],
+                "embedding": embedding,
+            }
+        )
+
     table_records = []
     for _, row in table_info_df.iterrows():
         embedding_str = row.get("embedding", "[]")
         if isinstance(embedding_str, str):
             import ast
+
             embedding = ast.literal_eval(embedding_str)
         else:
             embedding = embedding_str
-        
-        table_records.append({
-            "db_name": row.get("db_name", DEFAULT_DB_NAME),
-            "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
-            "description": row["description"],
-            "embedding": embedding,
-        })
-    
+
+        table_records.append(
+            {
+                "db_name": row.get("db_name", DEFAULT_DB_NAME),
+                "table_name": row.get("table_name", DEFAULT_TABLE_NAME),
+                "description": row["description"],
+                "embedding": embedding,
+            }
+        )
+
     # Populate the NeonDB tables
     neon_driver.populate_column_info(column_records)
     neon_driver.populate_dataset_info(data_records)
     neon_driver.populate_table_descriptions(table_records)
-    
+
     yield neon_driver
-    
+
     # Cleanup
     neon_driver.close()
     NeonVectorDBDriver.purge_nlqs_vectordb(neon_config)
-

@@ -4,10 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple, Union, cast
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 from nlqs.database.postgres import PostgresConnectionConfig, PostgresDriver
@@ -22,6 +19,7 @@ from nlqs.query_construction import (
 from nlqs.summarization import summarize
 from nlqs.vectordb_driver import ChromaDBConfig, VectorDBDriver
 from nlqs.search_field import SearchField
+
 # Add Neon imports
 from nlqs.neondb_driver import NeonDBConfig, NeonVectorDBDriver
 from utils.llm import get_default_llm, get_default_embedding_function
@@ -41,7 +39,7 @@ class NLQS:
         chroma_config: Union[ChromaDBConfig, NeonDBConfig],
     ) -> None:
         logger.info("Initializing NLQS...")
-        
+
         # Initialize database connection
         self.connection_config = connection_config
         # Store vector backend configuration (can be Chroma or Neon)
@@ -68,7 +66,7 @@ class NLQS:
 
         # Initialize the Embedding model - CHANGED: Use local BGE model instead of Azure
         logger.debug("Initializing embedding model...")
-        embedding_model = get_default_embedding_function(use_local=True) 
+        embedding_model = get_default_embedding_function(use_local=True)
         embedding_function = embedding_model.embed_query
         logger.info("Embedding model initialized")
 
@@ -88,30 +86,32 @@ class NLQS:
 
         # Test if all infrastructure is available
         logger.debug("Checking vector collections...")
-        if hasattr(self.vectordb_driver, "check_nlqs_collections_exists") and \
-           self.vectordb_driver.check_nlqs_collections_exists() is False:
+        if (
+            hasattr(self.vectordb_driver, "check_nlqs_collections_exists")
+            and self.vectordb_driver.check_nlqs_collections_exists() is False
+        ):
             logger.error("Vector collections do not exist")
             raise ValueError("Vector collections do not exist. Please create them.")
         logger.info("Vector collections verified")
 
     def execute_nlqs_query_workflow(self, user_input: str, chat_history: List[Tuple[str, str]]) -> NLQSResult:
         logger.info(f"Executing NLQS query workflow for input: {user_input}")
-        
+
         # Step 0 - Create the pre-requisite objects
         driver = self.connection_driver
 
         # Retrieve descriptions and types from db
         logger.debug("Retrieving column descriptions from vector database...")
         column_descriptions_dict = self.vectordb_driver.retrieve_descriptions_and_types_from_db()
-        
-        
-        print("*"*200)
-        
+
+        print("*" * 200)
+
         print(f"column_descriptions_dict: {column_descriptions_dict}")
-        
+
         import json
+
         print(json.dumps(column_descriptions_dict, indent=2))
-        
+
         if column_descriptions_dict is None:
             logger.error("No data found in the database")
             raise ValueError("No data found in the database. Generate Column descriptions.")
@@ -120,7 +120,7 @@ class NLQS:
         # Get the primary key for the table
         primary_key = driver.get_primary_key(self.table_name)
         logger.debug(f"Using primary key: {primary_key}")
-        
+
         # Get Vector backend readiness (Chroma exposes dataset_collection; Neon does not)
         logger.debug("Validating vector backend...")
         if hasattr(self.vectordb_driver, "dataset_collection"):
@@ -190,7 +190,7 @@ class NLQS:
         # TODO: Figure out other intents in the future
         else:
             ...
-            
+
         # This is the standard workflow for the NLQS
 
         # TODO: We should reenable this        # # Check if the user requested columns exist
@@ -215,18 +215,20 @@ class NLQS:
                 descriptive_data, cast(Any, self.vectordb_driver)
             )
 
-            logger.debug(f"Query fragments constructed - "
-                        f"Identifier: {len(identifier_query_fragments)}, "
-                        f"Quantitative: {len(quantitative_query_fragments)}, "
-                        f"Categorical: {len(categorical_query_fragments)}, "
-                        f"Descriptive: {len(descriptive_query_fragments)}")
+            logger.debug(
+                f"Query fragments constructed - "
+                f"Identifier: {len(identifier_query_fragments)}, "
+                f"Quantitative: {len(quantitative_query_fragments)}, "
+                f"Categorical: {len(categorical_query_fragments)}, "
+                f"Descriptive: {len(descriptive_query_fragments)}"
+            )
 
             # Construct a search field that will capture all the data from the user input
             # Determine database name based on driver type
-            if hasattr(self.connection_driver.db_config, 'database_name'):
+            if hasattr(self.connection_driver.db_config, "database_name"):
                 # PostgreSQL case - has database_name attribute
                 database_name = str(self.connection_driver.db_config.database_name)  # type: ignore
-            elif hasattr(self.connection_driver.db_config, 'db_file'):
+            elif hasattr(self.connection_driver.db_config, "db_file"):
                 # SQLite case - has db_file attribute
                 database_name = str(self.connection_driver.db_config.db_file)  # type: ignore
             else:
@@ -260,7 +262,7 @@ class NLQS:
 
             # Remove duplicates while preserving order
             unique_primary_keys = list(dict.fromkeys(all_primary_keys))
-            
+
             if not unique_primary_keys:
                 logger.info("No matching records found")
                 result = NLQSResult(records=[], uris=[])
@@ -283,7 +285,7 @@ class NLQS:
                         columns_to_select.append(primary_key)
                     if uri_column and uri_column not in columns_to_select:
                         columns_to_select.append(uri_column)
-                    
+
                     final_query = f"SELECT {','.join(col for col in columns_to_select)} FROM {self.table_name} WHERE {primary_key} IN ({primary_keys_string})"
                     data_retrieved = driver.execute_query(final_query)
                     columns_to_use = columns_to_select
@@ -303,17 +305,17 @@ class NLQS:
                     # Process the retrieved data
                     for row in data_retrieved:
                         record = dict(zip(columns_to_use, row))
-                        
+
                         # Extract URI if specified
                         if uri_column and uri_column in record:
                             uris.append(str(record[uri_column]))
                             if uri_column != primary_key:  # Don't delete primary key
                                 del record[uri_column]
-                        
+
                         # Remove primary key from record if it's not in output_columns
                         if output_columns and primary_key in record and primary_key not in output_columns:
                             del record[primary_key]
-                        
+
                         records.append(record)
 
                     # Create the result object
