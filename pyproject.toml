@@ -16,14 +16,14 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 python-dateutil = "^2.8.2"
 setuptools = "^65.5.0"
 pypdf = "^3.10.0"
 pymongo = "^4.3.3"
 bcrypt = "^4.0.1"
 python-jose = "^3.3.0"
-chromadb = "^0.4.8"
+chromadb = "0.5.3"
 langchain-community = "^0.3.0"
 langchain-core = "^0.3.0"
 langchain-openai = "^0.2.0"
@@ -51,6 +51,9 @@ python-dotenv = "^1.1.1"
 fuzzywuzzy = "^0.18.0"
 neo4j = "^5.28.2"
 psycopg = {extras = ["binary"], version = "^3.2.12"}
+types-tqdm = "^4.67.3.20260205"
+types-psycopg2 = "^2.9.21.20260223"
+types-networkx = "^3.6.1.20260210"
 
 [tool.poetry.group.dev.dependencies]
 flask_testing = "0.8.0"
