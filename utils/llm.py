@@ -15,7 +15,7 @@ def get_default_llm(use_azure: bool = True):
     if use_azure:
         return AzureChatOpenAI(
             azure_endpoint=AZURE_OPENAI_ENDPOINT,
-            api_key=AZURE_OPENAI_KEY,
+            api_key=SecretStr(AZURE_OPENAI_KEY) if AZURE_OPENAI_KEY else None,
             api_version="2024-08-01-preview",
             model="gpt-4o",
             temperature=0.3,  # Adjusted for precision
@@ -26,9 +26,9 @@ def get_default_llm(use_azure: bool = True):
     else:
         return ChatOpenAI(
             model="gpt-4",
-            api_key=OPENAI_API_KEY,
+            api_key=SecretStr(OPENAI_API_KEY) if OPENAI_API_KEY else None,
             temperature=0.3,
-            max_tokens=1500,
+            model_kwargs={"max_tokens": 1500},
             verbose=True,
         )
 
@@ -55,7 +55,7 @@ def get_default_embedding_function(use_azure: bool = False, use_local: bool = Tr
     elif use_azure:
         return AzureOpenAIEmbeddings(
             model="text-embedding-ada-002",
-            api_key=AZURE_OPENAI_KEY,
+            api_key=SecretStr(AZURE_OPENAI_KEY) if AZURE_OPENAI_KEY else None,
             azure_endpoint=AZURE_OPENAI_EMBEDDING_ENDPOINT,
         )
     else:
